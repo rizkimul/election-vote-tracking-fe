@@ -1,11 +1,53 @@
+# 🚀 React Project
 
-  # Election Vote Tracking Dashboard
+A modern React application built with ⚛️ React, using best practices and scalable folder structure.
 
-  This is a code bundle for Election Vote Tracking Dashboard. The original project is available at https://www.figma.com/design/7nvDZGnpOG2aU6j3iXMt3a/Election-Vote-Tracking-Dashboard.
+---
 
-  ## Running the code
+## 📦 Tech Stack
 
-  Run `npm i` to install the dependencies.
+- **React**
+- **JavaScript / TypeScript** (choose one)
+- **Vite / Create React App / Next.js** (choose one)
+- **CSS / TailwindCSS / Styled Components** (choose one)
+- **Axios / fetch API**
+- **React Router** _(if used)_
 
-  Run `npm run dev` to start the development server.
-  
+---
+
+## 📁 Folder Structure
+
+```bash
+src/
+ ├── assets/        # Images, icons, etc.
+ ├── components/    # Reusable components
+ ├── pages/         # Page components
+ ├── hooks/         # Custom hooks
+ ├── context/       # React context
+ ├── services/      # API services
+ ├── utils/         # Helper functions
+ ├── App.jsx
+ └── main.jsx
+```
+
+# Clone repo
+
+git clone https://github.com/your-username/your-repo.git
+
+cd your-repo
+
+# Install dependencies
+
+npm install
+
+# or
+
+yarn install
+
+## Run The app
+
+npm start
+
+# or
+
+yarn start
