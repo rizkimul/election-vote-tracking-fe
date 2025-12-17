@@ -1,86 +1,143 @@
-import React from 'react';
-import { KPICard } from '../components/dashboard/KPICard';
+import React, { useEffect, useState } from 'react';
+import { StatCard } from '../components/StatCard';
+import { ActivityWidget } from '../components/dashboard/ActivityWidget';
 import { FilterBar } from '../components/dashboard/FilterBar';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Vote, Users, MapPin, TrendingUp } from 'lucide-react';
-
-const voteData = [
-  { district: 'Dapil 1', votes: 4500, potential: 2300 },
-  { district: 'Dapil 2', votes: 3800, potential: 1900 },
-  { district: 'Dapil 3', votes: 5200, potential: 2700 },
-  { district: 'Dapil 4', votes: 4100, potential: 2100 },
-  { district: 'Dapil 5', votes: 3900, potential: 1800 },
-];
-
-const engagementData = [
-  { month: 'Jan', participants: 1200 },
-  { month: 'Feb', participants: 1800 },
-  { month: 'Mar', participants: 2200 },
-  { month: 'Apr', participants: 2800 },
-  { month: 'Mei', participants: 3200 },
-  { month: 'Jun', participants: 3800 },
-];
-
-const sourceData = [
-  { name: 'Reses', value: 150, color: '#3b82f6' },
-  { name: 'Pengawasan Pemerintah', value: 100, color: '#10b981' },
-  { name: 'Pendidikan Demokrasi', value: 50, color: '#f59e0b' },
-  { name: 'Dialog', value: 100, color: '#8b5cf6' },
-  { name: 'Silaturahmi Budaya', value: 100, color: '#ec4899' },
-];
+import { Vote, Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function Dashboard() {
+  const [stats, setStats] = useState({ 
+    total_votes: 0, 
+    total_votes_web: 0,
+    total_votes_import: 0,
+    total_events: 0, 
+    total_attendees: 0,
+    wilayah_count: 0 
+  });
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [voteData, setVoteData] = useState([]);
+  const [engagementData, setEngagementData] = useState([]);
+  const [sourceData, setSourceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [filters, setFilters] = useState<{dapil: string | null, kecamatan: string | null, dateRange: string}>({
+      dapil: null,
+      kecamatan: null,
+      dateRange: '30days'
+  });
+
+  // Fallback colors for charts
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#06b6d4'];
+
+  const handleFilterChange = (newFilters: any) => {
+      setFilters(newFilters);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        
+        const params = new URLSearchParams();
+        if (filters.dapil) params.append('dapil', filters.dapil);
+        if (filters.kecamatan) params.append('kecamatan', filters.kecamatan);
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+
+        // Fetch Global Stats
+        const statsRes = await fetch(`/api/analytics/global${queryString}`, { headers });
+        if (statsRes.ok) setStats(await statsRes.json());
+
+        // Fetch Vote Summary
+        const votesRes = await fetch(`/api/analytics/votes/summary${queryString}`, { headers });
+        if (votesRes.ok) setVoteData(await votesRes.json());
+        
+        // Fetch Engagement Trends
+        const trendsRes = await fetch(`/api/analytics/engagement/trends${queryString}`, { headers });
+        if (trendsRes.ok) setEngagementData(await trendsRes.json());
+        
+        // Fetch Recent Activity (Task 1) - Assuming endpoint exists or we use empty for now
+        // Fetch Recent Activity
+        const activityRes = await fetch(`/api/events/recent${queryString}`, { headers });
+        if (activityRes.ok) setRecentActivities(await activityRes.json()); 
+        
+        // Fetch Activity Distribution
+        const distRes = await fetch(`/api/analytics/activities/distribution${queryString}`, { headers });
+        if (distRes.ok) {
+            const data = await distRes.json();
+            const dataWithColors = data.map((item: any, idx: number) => ({
+                ...item,
+                color: COLORS[idx % COLORS.length]
+            }));
+            setSourceData(dataWithColors);
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+        toast.error("Gagal memuat data dashboard. Pastikan backend berjalan.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [filters]);
+
   return (
     <div>
-      <FilterBar />
+      <FilterBar onFilterChange={handleFilterChange} />
       
       <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard
+        <StatCard
           title="Total Suara"
-          value="21,500"
+          value={loading ? "..." : stats.total_votes.toLocaleString()}
           icon={Vote}
-          trend="+12.5% dari bulan lalu"
-          trendUp={true}
+          description={
+            <div className="flex gap-3 text-xs mt-1">
+                <span className="text-blue-600 font-medium">Web: {loading ? "..." : stats.total_votes_web.toLocaleString()}</span>
+                <span className="text-gray-300">|</span>
+                <span className="text-purple-600 font-medium">Import: {loading ? "..." : stats.total_votes_import.toLocaleString()}</span>
+            </div>
+          }
+          trend={{ value: 0, label: "vs import terakhir", direction: "neutral" }}
         />
-        <KPICard
-          title="Potensi Suara"
-          value="10,800"
+        <StatCard
+          title="Total Event"
+          value={loading ? "..." : stats.total_events.toLocaleString()}
           icon={TrendingUp}
-          trend="+8.3% dari bulan lalu"
-          trendUp={true}
+          description="Kegiatan Terjadwal"
         />
-        <KPICard
+        <StatCard
           title="Wilayah Tersentuh"
-          value="45"
+          value={loading ? "..." : (stats.wilayah_count || "0")} 
           icon={MapPin}
-          trend="+5 wilayah baru"
-          trendUp={true}
+          description="Kecamatan Aktif"
         />
-        <KPICard
+        <StatCard
           title="Total Partisipan"
-          value="15,000"
+          value={loading ? "..." : stats.total_attendees.toLocaleString()}
           icon={Users}
-          trend="+18.2% dari bulan lalu"
-          trendUp={true}
+          description="Peserta Terdaftar"
         />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Perolehan Suara per Dapil</CardTitle>
+            <CardTitle>Perolehan Suara per Partai</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={voteData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="district" />
-                <YAxis />
+                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="votes" fill="#3b82f6" name="Suara Aktual" />
-                <Bar dataKey="potential" fill="#10b981" name="Potensi Suara" />
+                <Bar dataKey="value" fill="#3b82f6" name="Jumlah Suara" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -94,11 +151,11 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={engagementData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
+                <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="participants" stroke="#3b82f6" strokeWidth={2} name="Partisipan" />
+                <Line type="monotone" dataKey="participants" stroke="#3b82f6" strokeWidth={2} name="Partisipan" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -112,25 +169,20 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { location: 'Kecamatan A, Desa 1', participants: 250, date: '2025-10-28', type: 'Reses' },
-                { location: 'Kecamatan B, Desa 3', participants: 180, date: '2025-10-27', type: 'Pendidikan Demokrasi' },
-                { location: 'Kecamatan C, Desa 2', participants: 320, date: '2025-10-26', type: 'Dialog' },
-                { location: 'Kecamatan A, Desa 4', participants: 200, date: '2025-10-25', type: 'Silaturahmi Budaya' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between border-b pb-4 last:border-0">
-                  <div className="flex-1">
-                    <p className="text-gray-900">{activity.location}</p>
-                    <p className="text-sm text-gray-500">
-                      {activity.type} • {activity.date}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-gray-900">{activity.participants}</p>
-                    <p className="text-sm text-gray-500">partisipan</p>
-                  </div>
-                </div>
-              ))}
+              {recentActivities.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Belum ada aktivitas tercatat.</p>
+              ) : (
+                recentActivities.map((activity, index) => (
+                    <div key={index}>
+                        <ActivityWidget 
+                            date={activity.date}
+                            type={activity.type}
+                            location={activity.location}
+                            participants={activity.participants}
+                        />
+                    </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -146,17 +198,17 @@ export function Dashboard() {
                   data={sourceData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  innerRadius={60}
                   outerRadius={80}
-                  fill="##8884d8"
+                  paddingAngle={5}
                   dataKey="value"
                 >
-                  {sourceData.map((entry, index) => (
+                  {sourceData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
