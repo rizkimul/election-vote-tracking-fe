@@ -17,3 +17,17 @@ export function getApiUrl(endpoint: string): string {
   }
   return `/api${endpoint}`;
 }
+
+/**
+ * Get common API headers including ngrok bypass header
+ * Use this for all fetch requests to ensure ngrok compatibility
+ * @param additionalHeaders - Additional headers to merge
+ * @returns Headers object
+ */
+export function getApiHeaders(additionalHeaders: Record<string, string> = {}): Record<string, string> {
+  return {
+    // This header bypasses ngrok's browser warning page
+    'ngrok-skip-browser-warning': 'true',
+    ...additionalHeaders
+  };
+}

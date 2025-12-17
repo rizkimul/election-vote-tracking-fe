@@ -9,7 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { User, Shield, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 interface UserProfile {
   id: number;
@@ -46,7 +46,7 @@ export function Settings() {
   const fetchProfile = async () => {
     try {
       const res = await fetch(getApiUrl('/auth/me'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) {
         const data = await res.json();
@@ -69,10 +69,10 @@ export function Settings() {
     try {
       const res = await fetch(getApiUrl('/auth/me'), {
         method: 'PUT',
-        headers: {
+        headers: getApiHeaders({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
+        }),
         body: JSON.stringify(formData)
       });
 
@@ -104,10 +104,10 @@ export function Settings() {
     try {
       const res = await fetch(getApiUrl('/auth/me/password'), {
         method: 'PUT',
-        headers: {
+        headers: getApiHeaders({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
+        }),
         body: JSON.stringify({
           current_password: passwordData.current_password,
           new_password: passwordData.new_password

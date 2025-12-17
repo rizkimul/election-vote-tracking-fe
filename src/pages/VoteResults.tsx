@@ -8,7 +8,7 @@ import { Search, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { KPICard } from '../components/dashboard/KPICard';
 import { Vote, Users, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 interface HistoricalVote {
   id: number;
@@ -35,7 +35,7 @@ export function VoteResults() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(getApiUrl('/historical-votes/?size=1000'), { // Fetch larger set for table
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) {
         setVotes(await res.json());

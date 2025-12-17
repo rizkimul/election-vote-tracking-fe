@@ -14,7 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { attendeeSchema, AttendeeFormValues } from '../lib/validation-schemas';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 // --- Local Schemas for specific forms in this page ---
 
@@ -111,7 +111,7 @@ export function EngagementForm() {
   const fetchActivityTypes = async () => {
     try {
       const res = await fetch(getApiUrl('/activity-types/'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) setActivityTypes(await res.json());
     } catch(e) { console.error(e); }
@@ -120,7 +120,7 @@ export function EngagementForm() {
   const fetchEvents = async () => {
     try {
       const res = await fetch(getApiUrl('/events/'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) {
           const data = await res.json();
@@ -132,7 +132,7 @@ export function EngagementForm() {
   const fetchAttendees = async (eventId: string) => {
       try {
           const res = await fetch(getApiUrl(`/events/${eventId}/attendees`), {
-              headers: { 'Authorization': `Bearer ${token}` }
+              headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
           });
           if (res.ok) setAttendees(await res.json());
       } catch(e) { console.error(e); }
@@ -143,10 +143,10 @@ export function EngagementForm() {
     try {
         const res = await fetch(getApiUrl('/events/'), {
             method: 'POST',
-            headers: { 
+            headers: getApiHeaders({ 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
-            },
+            }),
             body: JSON.stringify(data)
         });
 
@@ -172,10 +172,10 @@ export function EngagementForm() {
     try {
         const res = await fetch(getApiUrl('/events/attendees'), {
             method: 'POST',
-            headers: { 
+            headers: getApiHeaders({ 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}` 
-            },
+            }),
             body: JSON.stringify({
                 event_id: parseInt(selectedEventId),
                 ...data

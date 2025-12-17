@@ -3,7 +3,7 @@ import { Card, CardContent } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
 import { Calendar, Filter } from 'lucide-react';
-import { getApiUrl } from '../../lib/api';
+import { getApiUrl, getApiHeaders } from '../../lib/api';
 
 interface FilterBarProps {
   onFilterChange?: (filters: any) => void;
@@ -22,7 +22,7 @@ export function FilterBar({ onFilterChange }: FilterBarProps) {
       const fetchFilters = async () => {
           try {
               const token = localStorage.getItem('token');
-              const headers = { 'Authorization': `Bearer ${token}` };
+              const headers = getApiHeaders({ 'Authorization': `Bearer ${token}` });
               // Initial fetch with no dapil selected to get all options
               const res = await fetch(getApiUrl('/historical-votes/filters'), { headers });
               if (res.ok) {
@@ -44,7 +44,7 @@ export function FilterBar({ onFilterChange }: FilterBarProps) {
       const fetchKecamatans = async () => {
            try {
               const token = localStorage.getItem('token');
-              const headers = { 'Authorization': `Bearer ${token}` };
+              const headers = getApiHeaders({ 'Authorization': `Bearer ${token}` });
               const res = await fetch(getApiUrl(`/historical-votes/filters?dapil=${encodeURIComponent(selectedDapil)}`), { headers });
               if (res.ok) {
                   const data = await res.json();

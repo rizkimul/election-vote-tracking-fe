@@ -4,7 +4,7 @@ import { Button } from '../components/ui/button';
 import { AlertTriangle, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 interface Suggestion {
   kecamatan: string;
@@ -24,7 +24,7 @@ export function Prioritization() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(getApiUrl('/prioritization/suggest'), {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) {
           const data = await res.json();

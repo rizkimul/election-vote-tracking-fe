@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 interface ActivityType {
   id: number;
@@ -33,7 +33,7 @@ export function ActivityMaster() {
   const fetchActivities = async () => {
     try {
       const res = await fetch(getApiUrl('/activity-types/'), {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
       if (res.ok) {
         const data = await res.json();
@@ -51,10 +51,10 @@ export function ActivityMaster() {
     try {
       const res = await fetch(getApiUrl('/activity-types/'), {
         method: 'POST',
-        headers: { 
+        headers: getApiHeaders({ 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
+        }),
         body: JSON.stringify(formData),
       });
 
@@ -87,7 +87,7 @@ export function ActivityMaster() {
     try {
       const res = await fetch(getApiUrl(`/activity-types/${itemToDelete.id}`), {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
       });
 
       if (!res.ok) {

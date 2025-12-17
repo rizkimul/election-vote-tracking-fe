@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 // Bandung Regency Coordinates
 const KECAMATAN_COORDS: Record<string, [number, number]> = {
@@ -64,7 +64,7 @@ export function MapAnalytics() {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(getApiUrl('/analytics/heatmap'), {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
             });
             if (res.ok) {
                 const data = await res.json();

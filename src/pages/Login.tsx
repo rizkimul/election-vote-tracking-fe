@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { loginSchema, LoginFormValues } from '../lib/validation-schemas';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 export function Login() {
   const [serverError, setServerError] = useState('');
@@ -36,7 +36,7 @@ export function Login() {
     try {
       const response = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           nik: data.nik, // Field matches schema
           password: data.password,

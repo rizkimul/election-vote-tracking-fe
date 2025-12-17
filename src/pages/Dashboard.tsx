@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Vote, Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 export function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -41,7 +41,7 @@ export function Dashboard() {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const headers = getApiHeaders({ 'Authorization': `Bearer ${token}` });
         
         const params = new URLSearchParams();
         if (filters.dapil) params.append('dapil', filters.dapil);

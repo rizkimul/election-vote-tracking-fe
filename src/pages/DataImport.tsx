@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
-import { getApiUrl } from '../lib/api';
+import { getApiUrl, getApiHeaders } from '../lib/api';
 
 interface ImportLog {
     id: number;
@@ -29,7 +29,7 @@ export function DataImport() {
   const fetchHistory = async () => {
     try {
         const res = await fetch(getApiUrl('/historical-votes/import-history'), {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
         });
         if (res.ok) {
             const data = await res.json();
@@ -74,7 +74,7 @@ export function DataImport() {
         const response = await fetch(getApiUrl('/upload/votes-excel'), {
             method: 'POST',
             body: formData,
-            headers: { 'Authorization': `Bearer ${token}` } // Add token here too just in case
+            headers: getApiHeaders({ 'Authorization': `Bearer ${token}` }) // Add token here too just in case
         });
         
         // Note: FormData does not need Content-Type header, fetch sets it with boundary automatically.
