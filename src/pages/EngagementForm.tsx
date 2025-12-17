@@ -14,6 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { attendeeSchema, AttendeeFormValues } from '../lib/validation-schemas';
+import { getApiUrl } from '../lib/api';
 
 // --- Local Schemas for specific forms in this page ---
 
@@ -109,7 +110,7 @@ export function EngagementForm() {
   // --- Fetchers ---
   const fetchActivityTypes = async () => {
     try {
-      const res = await fetch('/api/activity-types/', {
+      const res = await fetch(getApiUrl('/activity-types/'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setActivityTypes(await res.json());
@@ -118,7 +119,7 @@ export function EngagementForm() {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch('/api/events/', {
+      const res = await fetch(getApiUrl('/events/'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -130,7 +131,7 @@ export function EngagementForm() {
 
   const fetchAttendees = async (eventId: string) => {
       try {
-          const res = await fetch(`/api/events/${eventId}/attendees`, {
+          const res = await fetch(getApiUrl(`/events/${eventId}/attendees`), {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) setAttendees(await res.json());
@@ -140,7 +141,7 @@ export function EngagementForm() {
   // --- Handlers ---
   const onCreateEvent = async (data: CreateEventFormValues) => {
     try {
-        const res = await fetch('/api/events/', {
+        const res = await fetch(getApiUrl('/events/'), {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -169,7 +170,7 @@ export function EngagementForm() {
     }
     
     try {
-        const res = await fetch('/api/events/attendees', {
+        const res = await fetch(getApiUrl('/events/attendees'), {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

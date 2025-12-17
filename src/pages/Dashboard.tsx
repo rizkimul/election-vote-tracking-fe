@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Vote, Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiUrl } from '../lib/api';
 
 export function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -48,24 +49,24 @@ export function Dashboard() {
         const queryString = params.toString() ? `?${params.toString()}` : '';
 
         // Fetch Global Stats
-        const statsRes = await fetch(`/api/analytics/global${queryString}`, { headers });
+        const statsRes = await fetch(getApiUrl(`/analytics/global${queryString}`), { headers });
         if (statsRes.ok) setStats(await statsRes.json());
 
         // Fetch Vote Summary
-        const votesRes = await fetch(`/api/analytics/votes/summary${queryString}`, { headers });
+        const votesRes = await fetch(getApiUrl(`/analytics/votes/summary${queryString}`), { headers });
         if (votesRes.ok) setVoteData(await votesRes.json());
         
         // Fetch Engagement Trends
-        const trendsRes = await fetch(`/api/analytics/engagement/trends${queryString}`, { headers });
+        const trendsRes = await fetch(getApiUrl(`/analytics/engagement/trends${queryString}`), { headers });
         if (trendsRes.ok) setEngagementData(await trendsRes.json());
         
         // Fetch Recent Activity (Task 1) - Assuming endpoint exists or we use empty for now
         // Fetch Recent Activity
-        const activityRes = await fetch(`/api/events/recent${queryString}`, { headers });
+        const activityRes = await fetch(getApiUrl(`/events/recent${queryString}`), { headers });
         if (activityRes.ok) setRecentActivities(await activityRes.json()); 
         
         // Fetch Activity Distribution
-        const distRes = await fetch(`/api/analytics/activities/distribution${queryString}`, { headers });
+        const distRes = await fetch(getApiUrl(`/analytics/activities/distribution${queryString}`), { headers });
         if (distRes.ok) {
             const data = await distRes.json();
             const dataWithColors = data.map((item: any, idx: number) => ({

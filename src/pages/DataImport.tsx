@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { getApiUrl } from '../lib/api';
 
 interface ImportLog {
     id: number;
@@ -27,7 +28,7 @@ export function DataImport() {
 
   const fetchHistory = async () => {
     try {
-        const res = await fetch('/api/historical-votes/import-history', {
+        const res = await fetch(getApiUrl('/historical-votes/import-history'), {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -70,7 +71,7 @@ export function DataImport() {
             setProgress(p => Math.min(p + 10, 90));
         }, 300);
 
-        const response = await fetch('/api/upload/votes-excel', {
+        const response = await fetch(getApiUrl('/upload/votes-excel'), {
             method: 'POST',
             body: formData,
             headers: { 'Authorization': `Bearer ${token}` } // Add token here too just in case

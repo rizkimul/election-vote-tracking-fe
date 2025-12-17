@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { getApiUrl } from '../lib/api';
 
 interface ActivityType {
   id: number;
@@ -31,7 +32,7 @@ export function ActivityMaster() {
 
   const fetchActivities = async () => {
     try {
-      const res = await fetch('/api/activity-types/', {
+      const res = await fetch(getApiUrl('/activity-types/'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -48,7 +49,7 @@ export function ActivityMaster() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/activity-types/', {
+      const res = await fetch(getApiUrl('/activity-types/'), {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -84,7 +85,7 @@ export function ActivityMaster() {
     setShowDeleteDialog(false);
 
     try {
-      const res = await fetch(`/api/activity-types/${itemToDelete.id}`, {
+      const res = await fetch(getApiUrl(`/activity-types/${itemToDelete.id}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

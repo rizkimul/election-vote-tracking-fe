@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { User, Shield, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { getApiUrl } from '../lib/api';
 
 interface UserProfile {
   id: number;
@@ -44,7 +45,7 @@ export function Settings() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(getApiUrl('/auth/me'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -66,7 +67,7 @@ export function Settings() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(getApiUrl('/auth/me'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ export function Settings() {
 
     setChangingPassword(true);
     try {
-      const res = await fetch('/api/auth/me/password', {
+      const res = await fetch(getApiUrl('/auth/me/password'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
