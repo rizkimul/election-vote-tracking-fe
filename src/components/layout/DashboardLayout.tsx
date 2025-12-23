@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, BarChart3, Users, Map, Upload, Settings, Vote, AlertTriangle, LogOut } from 'lucide-react';
+import { Home, Users, Map, Upload, Settings, Calendar, AlertTriangle, LogOut, Download } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -32,14 +32,14 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// SABADESA Navigation - Vote features hidden, activity-focused
 const navigationItems = [
   { id: 'dashboard', label: 'Dasbor', icon: Home },
-  { id: 'vote-results', label: 'Hasil Perolehan Suara', icon: Vote },
   { id: 'engagement-form', label: 'Input Engagement', icon: Users },
-  { id: 'activity-master', label: 'Master Kegiatan', icon: Settings }, // Using Settings icon for now or List
+  { id: 'activity-master', label: 'Master Kegiatan', icon: Calendar },
+  { id: 'export-data', label: 'Export Data', icon: Download },
   { id: 'map-analytics', label: 'Peta & Analitik', icon: Map },
   { id: 'prioritization', label: 'Rekomendasi', icon: AlertTriangle },
-  { id: 'data-import', label: 'Import Data', icon: Upload },
   { id: 'settings', label: 'Pengaturan', icon: Settings },
 ];
 
@@ -66,12 +66,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SidebarContent>
           <div className="px-6 py-4">
             <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-                <Vote className="h-6 w-6 text-white" />
-              </div>
+              <img 
+                src="/app-logo.jpeg" 
+                alt="SABADESA Logo" 
+                className="h-10 w-10 rounded-lg object-cover shadow-sm"
+              />
               <div>
-                <h1 className="text-lg text-gray-900">VoteTrack</h1>
-                <p className="text-sm text-gray-500">Sistem Engagement</p>
+                <h1 className="text-lg font-semibold text-gray-900">SABADESA</h1>
+                <p className="text-xs text-gray-500">SAEFUL BACHRI DEWAN SARAREA</p>
               </div>
             </div>
           </div>
