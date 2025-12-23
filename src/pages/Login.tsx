@@ -3,12 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Vote, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { loginSchema, LoginFormValues } from '../lib/validation-schemas';
 import { getApiUrl, getApiHeaders } from '../lib/api';
 
@@ -24,7 +23,7 @@ export function Login() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      nik: '',
+      username: '',
       password: '',
     },
   });
@@ -38,13 +37,13 @@ export function Login() {
         method: 'POST',
         headers: getApiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
-          nik: data.nik, // Field matches schema
+          username: data.username,
           password: data.password,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Login failed. Periksa NIK dan Password anda.');
+        throw new Error('Login failed. Periksa Username dan Password anda.');
       }
 
       const resData = await response.json();
@@ -57,60 +56,61 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600">
-              <Vote className="h-8 w-8 text-white" />
-            </div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Card className="w-full max-w-sm shadow-xl">
+        <CardHeader className="space-y-1 text-center pb-2">
+          <div className="flex justify-center mb-3">
+            <img 
+              src="/app-logo.jpeg" 
+              alt="SABADESA Logo" 
+              className="h-16 w-16 rounded-lg object-cover shadow-md"
+            />
           </div>
-          <CardTitle className="text-2xl font-bold text-blue-900">VoteTrack</CardTitle>
-          <CardDescription>Masuk untuk mengakses Dashboard Pemenangan</CardDescription>
+          <CardTitle className="text-xl font-bold text-blue-900">SABADESA</CardTitle>
+          <CardDescription className="text-xs">
+            Saeful Bachri Dewan Sararea
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <CardContent className="pt-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
             {serverError && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{serverError}</AlertDescription>
+                <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">{serverError}</AlertDescription>
                 </Alert>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="nik">NIK</Label>
+            <div className="space-y-1">
+              <Label htmlFor="username" className="text-sm">Username</Label>
               <Input
-                id="nik"
-                placeholder="Masukkan NIK (16 digit)"
-                {...register('nik')}
-                className={errors.nik ? "border-red-500" : ""}
-                maxLength={16}
+                id="username"
+                placeholder="Masukkan username"
+                {...register('username')}
+                className={`h-9 text-sm ${errors.username ? "border-red-500" : ""}`}
               />
-              {errors.nik && (
-                  <p className="text-xs text-red-500">{errors.nik.message}</p>
+              {errors.username && (
+                  <p className="text-xs text-red-500">{errors.username.message}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-sm text-blue-600 hover:underline">
-                  Lupa password?
-                </a>
+                <Label htmlFor="password" className="text-sm">Password</Label>
               </div>
               <Input
                 id="password"
                 type="password"
+                placeholder="Masukkan password"
                 {...register('password')}
-                className={errors.password ? "border-red-500" : ""}
+                className={`h-9 text-sm ${errors.password ? "border-red-500" : ""}`}
               />
                {errors.password && (
                   <p className="text-xs text-red-500">{errors.password.message}</p>
               )}
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+            <Button type="submit" className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-sm" disabled={loading}>
               {loading ? 'Memproses...' : 'Masuk'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-gray-500">
+          <div className="mt-3 text-center text-xs text-gray-500">
             Belum punya akun? Hubungi Administrator
           </div>
         </CardContent>
@@ -118,4 +118,3 @@ export function Login() {
     </div>
   );
 }
-
