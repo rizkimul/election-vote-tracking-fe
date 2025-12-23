@@ -3,63 +3,34 @@ import { Card, CardContent } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
 import { Calendar, Filter } from 'lucide-react';
-import { getApiUrl, getApiHeaders } from '../../lib/api';
+import { DAPIL_OPTIONS, getKecamatanByDapil, getKecamatanNames } from '../../lib/wilayah-data';
 
 interface FilterBarProps {
   onFilterChange?: (filters: any) => void;
 }
 
 export function FilterBar({ onFilterChange }: FilterBarProps) {
-  const [dapils, setDapils] = React.useState<string[]>([]);
-  const [kecamatans, setKecamatans] = React.useState<string[]>([]);
-  
   const [selectedDapil, setSelectedDapil] = React.useState<string>("all-districts");
   const [selectedKecamatan, setSelectedKecamatan] = React.useState<string>("all-subdistricts");
   const [selectedDateRange, setSelectedDateRange] = React.useState<string>("30days");
 
+  // Get dapil options from static wilayah data
+  const dapils = DAPIL_OPTIONS;
 
-  React.useEffect(() => {
-      const fetchFilters = async () => {
-          try {
-              const token = localStorage.getItem('token');
-              const headers = getApiHeaders({ 'Authorization': `Bearer ${token}` });
-              // Initial fetch with no dapil selected to get all options
-              const res = await fetch(getApiUrl('/historical-votes/filters'), { headers });
-              if (res.ok) {
-                  const data = await res.json();
-                  setDapils(data.dapils || []);
-                  setKecamatans(data.kecamatans || []);
-              }
-          } catch (e) {
-              console.error("Failed to fetch filters", e);
-          }
-      };
-      fetchFilters();
-  }, []);
-
-  // Effect to refetch kecamatans when dapil changes (cascading)
-  React.useEffect(() => {
-      if (selectedDapil === "all-districts") return;
-      
-      const fetchKecamatans = async () => {
-           try {
-              const token = localStorage.getItem('token');
-              const headers = getApiHeaders({ 'Authorization': `Bearer ${token}` });
-              const res = await fetch(getApiUrl(`/historical-votes/filters?dapil=${encodeURIComponent(selectedDapil)}`), { headers });
-              if (res.ok) {
-                  const data = await res.json();
-                  setKecamatans(data.kecamatans || []);
-                  // Reset kecamatan if current selection is not in new list
-                  if (!data.kecamatans.includes(selectedKecamatan) && selectedKecamatan !== "all-subdistricts") {
-                      setSelectedKecamatan("all-subdistricts");
-                  }
-              }
-          } catch (e) {
-              console.error("Failed to fetch kecamatans", e);
-          }
-      }
-      fetchKecamatans();
+  // Get kecamatan options based on selected dapil (cascading filter)
+  const kecamatans = React.useMemo(() => {
+    if (selectedDapil === "all-districts") {
+      return getKecamatanNames();
+    }
+    return getKecamatanByDapil(selectedDapil).map(k => k.name);
   }, [selectedDapil]);
+
+  // Reset kecamatan when dapil changes and current selection is not in new list
+  React.useEffect(() => {
+    if (selectedKecamatan !== "all-subdistricts" && !kecamatans.includes(selectedKecamatan)) {
+      setSelectedKecamatan("all-subdistricts");
+    }
+  }, [kecamatans, selectedKecamatan]);
 
 
   const handleApply = () => {
