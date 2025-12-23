@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { Dashboard } from './pages/Dashboard';
 import { ExportData } from './pages/ExportData';
@@ -14,6 +14,14 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated && location.pathname !== '/') {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, location, navigate]);
 
   if (!isAuthenticated) {
     return <Login />;
