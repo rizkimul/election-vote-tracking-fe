@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
 import { Download, Filter, Users } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
 import { getApiUrl, getApiHeaders } from '../lib/api';
 import { DAPIL_OPTIONS, KECAMATAN_DATA, getKecamatanByDapil, getDesaByKecamatan, getGenerationCategory } from '../lib/wilayah-data';
@@ -150,49 +150,37 @@ export function ExportData() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
               <Label className="text-sm">Dapil</Label>
-              <Select value={filters.dapil || "ALL"} onValueChange={handleDapilChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Semua Dapil" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Semua Dapil</SelectItem>
-                  {DAPIL_OPTIONS.map(dapil => (
-                    <SelectItem key={dapil} value={dapil}>{dapil}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={DAPIL_OPTIONS.map(dapil => ({ value: dapil, label: dapil }))}
+                value={filters.dapil}
+                onValueChange={handleDapilChange}
+                placeholder="Semua Dapil"
+                searchPlaceholder="Cari dapil..."
+                emptyText="Dapil tidak ditemukan."
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-sm">Kecamatan</Label>
-              <Select value={filters.kecamatan || "ALL"} onValueChange={handleKecamatanChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Semua Kecamatan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Semua Kecamatan</SelectItem>
-                  {kecamatanOptions.map(kec => (
-                    <SelectItem key={kec} value={kec}>{kec}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={kecamatanOptions.map(kec => ({ value: kec, label: kec }))}
+                value={filters.kecamatan}
+                onValueChange={handleKecamatanChange}
+                placeholder="Semua Kecamatan"
+                searchPlaceholder="Cari kecamatan..."
+                emptyText="Kecamatan tidak ditemukan."
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-sm">Desa/Kelurahan</Label>
-              <Select 
-                value={filters.desa || "ALL"} 
+              <Combobox
+                options={desaOptions.map(desa => ({ value: desa, label: desa }))}
+                value={filters.desa}
                 onValueChange={handleDesaChange}
+                placeholder={filters.kecamatan ? "Pilih Desa" : "Pilih Kecamatan dulu"}
+                searchPlaceholder="Cari desa..."
+                emptyText="Desa tidak ditemukan."
                 disabled={!filters.kecamatan}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={filters.kecamatan ? "Pilih Desa" : "Pilih Kecamatan dulu"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Semua Desa</SelectItem>
-                  {desaOptions.map(desa => (
-                    <SelectItem key={desa} value={desa}>{desa}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
           </div>
         </CardContent>

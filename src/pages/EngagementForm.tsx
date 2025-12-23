@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -9,9 +9,11 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Textarea } from '../components/ui/textarea';
+import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
 import { Calendar, UserPlus, Users, IdCard, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { DuplicateNIKConfirmationDialog } from '../components/DuplicateNIKConfirmationDialog';
 import { useForm, Controller } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -97,10 +99,16 @@ export function EngagementForm() {
   // Attendee form location state
   const [attendeeKecamatan, setAttendeeKecamatan] = useState<string>('');
 
+  // Duplicate NIK confirmation dialog state
+  const [duplicateDialog, setDuplicateDialog] = useState<{
+    isOpen: boolean;
+    nik: string;
+    activities: Array<{activity_name: string; date: string; location: string}>;
+    pendingData: AttendeeInputFormValues | null;
+  }>({ isOpen: false, nik: '', activities: [], pendingData: null });
+
   // Get filtered options based on selection
-  const eventKecamatanOptions = selectedEventDapil 
-    ? getKecamatanByDapil(selectedEventDapil).map(k => k.name)
-    : getKecamatanNames();
+  const eventKecamatanOptions = getKecamatanNames();
   
   const eventDesaOptions = selectedEventKecamatan 
     ? getDesaByKecamatan(selectedEventKecamatan).map(d => d.name)
@@ -248,14 +256,20 @@ export function EngagementForm() {
     }
   };
 
-  const onAddAttendee = async (data: AttendeeInputFormValues) => {
+  const onAddAttendee = async (data: AttendeeInputFormValues, forceAdd: boolean = false) => {
     if (!selectedEventId) {
       toast.error('Pilih kegiatan terlebih dahulu');
       return;
     }
     
     try {
-      const res = await fetch(getApiUrl('/events/attendees'), {
+      const url = forceAdd 
+        ? getApiUrl('/events/attendees?force_add=true')
+        : getApiUrl('/events/attendees');
+      
+      console.log('Adding attendee with forceAdd:', forceAdd, 'URL:', url);
+        
+      const res = await fetch(url, {
         method: 'POST',
         headers: getApiHeaders({ 
           'Content-Type': 'application/json',
@@ -277,7 +291,23 @@ export function EngagementForm() {
       
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Gagal menambahkan peserta');
+        
+        // Handle 409 Conflict - duplicate NIK warning
+        if (res.status === 409 && err.detail?.type === 'duplicate_warning') {
+          setDuplicateDialog({
+            isOpen: true,
+            nik: data.nik,
+            activities: err.detail.activities || [],
+            pendingData: data
+          });
+          return;
+        }
+        
+        // Handle other errors (including string detail)
+        const errorMessage = typeof err.detail === 'string' 
+          ? err.detail 
+          : err.detail?.message || 'Gagal menambahkan peserta';
+        throw new Error(errorMessage);
       }
       
       toast.success('Peserta berhasil ditambahkan');
@@ -292,6 +322,19 @@ export function EngagementForm() {
     }
   };
 
+  const handleDuplicateConfirm = async () => {
+    if (duplicateDialog.pendingData) {
+      // Close the dialog first
+      setDuplicateDialog({ isOpen: false, nik: '', activities: [], pendingData: null });
+      // Resubmit with force_add
+      await onAddAttendee(duplicateDialog.pendingData, true);
+    }
+  };
+
+  const handleDuplicateCancel = () => {
+    setDuplicateDialog({ isOpen: false, nik: '', activities: [], pendingData: null });
+  };
+
   const handleEventDapilChange = (value: string) => {
     setSelectedEventDapil(value);
     setSelectedEventKecamatan('');
@@ -304,13 +347,11 @@ export function EngagementForm() {
     setSelectedEventKecamatan(value);
     eventForm.setValue('kecamatan', value);
     eventForm.setValue('desa', '');
-    // Auto-set dapil if not set
-    if (!selectedEventDapil) {
-      const dapil = getDapilByKecamatan(value);
-      if (dapil) {
-        setSelectedEventDapil(dapil);
-        eventForm.setValue('dapil', dapil);
-      }
+    // Auto-set dapil based on kecamatan
+    const dapil = getDapilByKecamatan(value);
+    if (dapil) {
+      setSelectedEventDapil(dapil);
+      eventForm.setValue('dapil', dapil);
     }
   };
 
@@ -377,30 +418,28 @@ export function EngagementForm() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label>Dapil (Opsional)</Label>
-                      <Select value={selectedEventDapil} onValueChange={handleEventDapilChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih Dapil" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DAPIL_OPTIONS.map(dapil => (
-                            <SelectItem key={dapil} value={dapil}>{dapil}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        options={DAPIL_OPTIONS.map(dapil => ({ value: dapil, label: dapil }))}
+                        value={selectedEventDapil}
+                        onValueChange={handleEventDapilChange}
+                        placeholder="Pilih Dapil"
+                        searchPlaceholder="Cari dapil..."
+                        emptyText="Dapil tidak ditemukan."
+                        disabled={true}
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <Label>Kecamatan <span className="text-red-500">*</span></Label>
-                      <Select value={selectedEventKecamatan} onValueChange={handleEventKecamatanChange}>
-                        <SelectTrigger className={eventForm.formState.errors.kecamatan ? "border-red-500" : ""}>
-                          <SelectValue placeholder="Pilih Kecamatan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {eventKecamatanOptions.map(kec => (
-                            <SelectItem key={kec} value={kec}>{kec}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        options={eventKecamatanOptions.map(kec => ({ value: kec, label: kec }))}
+                        value={selectedEventKecamatan}
+                        onValueChange={handleEventKecamatanChange}
+                        placeholder="Pilih Kecamatan"
+                        searchPlaceholder="Cari kecamatan..."
+                        emptyText="Kecamatan tidak ditemukan."
+                        className={eventForm.formState.errors.kecamatan ? "border-red-500" : ""}
+                      />
                       {eventForm.formState.errors.kecamatan && (
                         <p className="text-xs text-red-500">{eventForm.formState.errors.kecamatan.message}</p>
                       )}
@@ -409,20 +448,15 @@ export function EngagementForm() {
 
                   <div className="space-y-2">
                     <Label>Desa/Kelurahan</Label>
-                    <Select 
-                      value={eventForm.watch('desa') || ''} 
+                    <Combobox
+                      options={eventDesaOptions.map(desa => ({ value: desa, label: desa }))}
+                      value={eventForm.watch('desa') || ''}
                       onValueChange={(v: string) => eventForm.setValue('desa', v)}
+                      placeholder={selectedEventKecamatan ? "Pilih Desa" : "Pilih Kecamatan dulu"}
+                      searchPlaceholder="Cari desa/kelurahan..."
+                      emptyText="Desa tidak ditemukan."
                       disabled={!selectedEventKecamatan}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={selectedEventKecamatan ? "Pilih Desa" : "Pilih Kecamatan dulu"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {eventDesaOptions.map(desa => (
-                          <SelectItem key={desa} value={desa}>{desa}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -527,7 +561,7 @@ export function EngagementForm() {
                     </Select>
                   </div>
                   
-                  <form onSubmit={attendeeForm.handleSubmit(onAddAttendee)} className="space-y-4 border-t pt-4">
+                  <form onSubmit={attendeeForm.handleSubmit((data) => onAddAttendee(data))} className="space-y-4 border-t pt-4">
                     {/* NIK/NIS Toggle for Education Activities */}
                     {isEducationActivity && (
                       <div className="space-y-3 mt-4">
@@ -595,33 +629,26 @@ export function EngagementForm() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-2">
                         <Label>Kecamatan</Label>
-                        <Select value={attendeeKecamatan} onValueChange={handleAttendeeKecamatanChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getKecamatanNames().map(kec => (
-                              <SelectItem key={kec} value={kec}>{kec}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          options={getKecamatanNames().map(kec => ({ value: kec, label: kec }))}
+                          value={attendeeKecamatan}
+                          onValueChange={handleAttendeeKecamatanChange}
+                          placeholder="Pilih Kecamatan"
+                          searchPlaceholder="Cari kecamatan..."
+                          emptyText="Kecamatan tidak ditemukan."
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label>Desa/Kelurahan</Label>
-                        <Select 
-                          value={attendeeForm.watch('desa') || ''} 
+                        <Combobox
+                          options={attendeeDesaOptions.map(desa => ({ value: desa, label: desa }))}
+                          value={attendeeForm.watch('desa') || ''}
                           onValueChange={(v: string) => attendeeForm.setValue('desa', v)}
+                          placeholder={attendeeKecamatan ? "Pilih Desa" : "Pilih Kecamatan dulu"}
+                          searchPlaceholder="Cari desa..."
+                          emptyText="Desa tidak ditemukan."
                           disabled={!attendeeKecamatan}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {attendeeDesaOptions.map(desa => (
-                              <SelectItem key={desa} value={desa}>{desa}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                       </div>
                     </div>
 
@@ -719,6 +746,15 @@ export function EngagementForm() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Duplicate NIK Confirmation Dialog */}
+      <DuplicateNIKConfirmationDialog
+        isOpen={duplicateDialog.isOpen}
+        onClose={handleDuplicateCancel}
+        onConfirm={handleDuplicateConfirm}
+        nik={duplicateDialog.nik}
+        activities={duplicateDialog.activities}
+      />
     </div>
   );
 }
