@@ -4,9 +4,10 @@ import { ActivityWidget } from '../components/dashboard/ActivityWidget';
 import { FilterBar } from '../components/dashboard/FilterBar';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Vote, Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
+import { Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiUrl, getApiHeaders } from '../lib/api';
+import { TOTAL_KECAMATAN, TOTAL_WILAYAH } from '../lib/wilayah-data';
 
 export function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -21,6 +22,7 @@ export function Dashboard() {
   const [voteData, setVoteData] = useState([]);
   const [engagementData, setEngagementData] = useState([]);
   const [sourceData, setSourceData] = useState([]);
+  const [kecamatanData, setKecamatanData] = useState<any[]>([]);  // Participants per Kecamatan
   const [loading, setLoading] = useState(true);
   
   const [filters, setFilters] = useState<{dapil: string | null, kecamatan: string | null, dateRange: string}>({
@@ -76,6 +78,22 @@ export function Dashboard() {
             setSourceData(dataWithColors);
         }
 
+        // Fetch Heatmap data for Participants per Kecamatan chart
+        const heatmapRes = await fetch(getApiUrl(`/analytics/heatmap${queryString}`), { headers });
+        if (heatmapRes.ok) {
+            const data = await heatmapRes.json();
+            // Transform heatmap data to bar chart format (sorted by participants)
+            const barData = data
+                .map((item: any) => ({
+                    name: item.kecamatan,
+                    peserta: item.intensity || 0
+                }))
+                .filter((item: any) => item.peserta > 0)
+                .sort((a: any, b: any) => b.peserta - a.peserta)
+                .slice(0, 10);  // Top 10 Kecamatan
+            setKecamatanData(barData);
+        }
+
       } catch (error) {
         console.error("Failed to fetch dashboard data", error);
         toast.error("Gagal memuat data dashboard. Pastikan backend berjalan.");
@@ -91,74 +109,79 @@ export function Dashboard() {
     <div>
       <FilterBar onFilterChange={handleFilterChange} />
       
-      <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {/* SABADESA Stats - Activity focused, no vote data */}
+      <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          title="Total Suara"
-          value={loading ? "..." : stats.total_votes.toLocaleString()}
-          icon={Vote}
-          description={
-            <div className="flex gap-3 text-xs mt-1">
-                <span className="text-blue-600 font-medium">Web: {loading ? "..." : stats.total_votes_web.toLocaleString()}</span>
-                <span className="text-gray-300">|</span>
-                <span className="text-purple-600 font-medium">Import: {loading ? "..." : stats.total_votes_import.toLocaleString()}</span>
-            </div>
-          }
-          trend={{ value: 0, label: "vs import terakhir", direction: "neutral" }}
-        />
-        <StatCard
-          title="Total Event"
+          title="Total Kegiatan"
           value={loading ? "..." : stats.total_events.toLocaleString()}
-          icon={TrendingUp}
-          description="Kegiatan Terjadwal"
+          icon={Calendar}
+          description="Kegiatan Terlaksana"
         />
         <StatCard
           title="Wilayah Tersentuh"
-          value={loading ? "..." : (stats.wilayah_count || "0")} 
+          value={loading ? "..." : `${stats.wilayah_count || 0}/${TOTAL_KECAMATAN}`} 
           icon={MapPin}
-          description="Kecamatan Aktif"
+          description={`dari ${TOTAL_WILAYAH} Desa/Kelurahan`}
         />
         <StatCard
           title="Total Partisipan"
           value={loading ? "..." : stats.total_attendees.toLocaleString()}
           icon={Users}
-          description="Peserta Terdaftar"
+          description="Peserta Kegiatan"
         />
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
+        {/* Replaced vote chart with activity distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Perolehan Suara per Partai</CardTitle>
+            <CardTitle>Distribusi Kegiatan per Jenis</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={voteData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
+              <PieChart>
+                <Pie
+                  data={sourceData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, percent }) => {
+                    const truncatedName = name.length > 15 ? name.substring(0, 15) + '...' : name;
+                    return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
+                  }}
+                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
+                >
+                  {sourceData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
                 <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#3b82f6" name="Jumlah Suara" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
+        {/* Participants per Kecamatan Bar Chart - Required by SABADESA */}
         <Card>
           <CardHeader>
-            <CardTitle>Tren Engagement</CardTitle>
+            <CardTitle>Partisipan per Kecamatan</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={engagementData}>
+              <BarChart data={kecamatanData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                <XAxis type="number" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" fontSize={11} tickLine={false} axisLine={false} width={100} />
                 <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="participants" stroke="#3b82f6" strokeWidth={2} name="Partisipan" dot={false} />
-              </LineChart>
+                <Bar dataKey="peserta" fill="#3b82f6" name="Peserta" radius={[0, 4, 4, 0]} />
+              </BarChart>
             </ResponsiveContainer>
+            {kecamatanData.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per kecamatan</p>
+            )}
           </CardContent>
         </Card>
       </div>
