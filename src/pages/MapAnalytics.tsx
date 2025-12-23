@@ -44,16 +44,11 @@ const KECAMATAN_COORDS: Record<string, [number, number]> = {
 // Default fallback
 const DEFAULT_CENTER: [number, number] = [-7.0260, 107.5186]; 
 
-// Helper to determine color based on intensity (0-1 range relative to max)
-const getColor = (value: number, max: number) => {
-    if (max === 0) return '#3b82f6'; // Default blue if no data
-    const ratio = value / max;
-    
-    // Simple Thresholds
-    if (ratio < 0.25) return '#10b981'; // Emerald-500 (Low)
-    if (ratio < 0.5) return '#eab308'; // Yellow-500 (Low-Mid)
-    if (ratio < 0.75) return '#f97316'; // Orange-500 (Mid-High)
-    return '#ef4444'; // Red-500 (High)
+// Helper to determine color based on absolute participant count
+const getColor = (value: number) => {
+    if (value < 100) return '#10b981'; // Emerald-500 (Green) - Low
+    if (value <= 300) return '#eab308'; // Yellow-500 - Medium
+    return '#ef4444'; // Red-500 - High
 };
 
 export function MapAnalytics() {
@@ -79,13 +74,13 @@ export function MapAnalytics() {
     fetchData();
   }, []);
 
-  const maxIntensity = Math.max(...heatmapData.map((d: any) => d.intensity || 0), 1);
+  // Max intensity logic removed as we use absolute thresholds now
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-            <CardTitle>Peta Persebaran Suara & Aktivitas</CardTitle>
+            <CardTitle>Peta Persebaran Peserta Kegiatan</CardTitle>
         </CardHeader>
         <CardContent>
             {/* Map Wrapper */}
@@ -105,12 +100,11 @@ export function MapAnalytics() {
                         const coords = KECAMATAN_COORDS[key];
 
                         if (!coords) {
-                            // Silently skip or log once in a real app to avoid console spam
-                            // console.warn("Unknown location:", item.kecamatan); 
                             return null;
                         }
 
-                        const color = getColor(item.intensity || 0, maxIntensity);
+                        // Use absolute value for color
+                        const color = getColor(item.intensity || 0);
 
                         return (
                             <CircleMarker 
@@ -127,7 +121,7 @@ export function MapAnalytics() {
                                 <Popup>
                                     <div className="text-center">
                                         <strong className="text-lg">{item.kecamatan}</strong>
-                                        <div className="text-sm">Total Suara: <span className="font-bold">{item.intensity?.toLocaleString()}</span></div>
+                                        <div className="text-sm">Total Peserta: <span className="font-bold">{item.intensity?.toLocaleString()}</span></div>
                                     </div>
                                 </Popup>
                             </CircleMarker>
@@ -137,29 +131,25 @@ export function MapAnalytics() {
 
                 {/* Legend Overlay */}
                 <div className="absolute bottom-6 left-6 bg-white p-3 rounded-lg shadow-md border border-gray-200 z-[1000] text-xs">
-                    <h4 className="font-semibold mb-2">Legenda Intensitas Suara</h4>
+                    <h4 className="font-semibold mb-2">Legenda Kepadatan Peserta</h4>
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                            <span>Tinggi ({">"} 75%)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-                            <span>Menengah-Tinggi (50-75%)</span>
+                            <span>Tinggi ({">"} 300)</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                            <span>Menengah-Rendah (25-50%)</span>
+                            <span>Menengah (100 - 300)</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-                            <span>Rendah ({'<'} 25%)</span>
+                            <span>Rendah ({'<'} 100)</span>
                         </div>
                     </div>
                 </div>
             </div>
             <p className="mt-4 text-sm text-gray-500">
-                Warna titik merepresentasikan intensitas suara relatif terhadap perolehan maksimal di wilayah lain.
+                Warna titik merepresentasikan jumlah peserta kegiatan di kecamatan sesuai kategori.
             </p>
         </CardContent>
       </Card>
