@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import { getApiUrl, getApiHeaders } from '../lib/api';
 export function Login() {
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
   const {
@@ -56,22 +57,22 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-sm shadow-xl">
-        <CardHeader className="space-y-1 text-center pb-2">
-          <div className="flex justify-center mb-3">
+    <div className="flex h-svh items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Card className="w-full shadow-xl mt-16" style={{ maxWidth: '350px' }}>
+        <CardHeader className="space-y-1 text-center pb-2 px-3 pt-4">
+          <div className="flex justify-center mb-2 mt-4">
             <img 
               src="/app-logo.jpeg" 
               alt="SABADESA Logo" 
-              className="h-16 w-16 rounded-lg object-cover shadow-md"
+              className="h-10 w-10 rounded-lg object-cover shadow-md"
             />
           </div>
-          <CardTitle className="text-xl font-bold text-blue-900">SABADESA</CardTitle>
+          <CardTitle className="text-lg font-bold text-blue-900">SABADESA</CardTitle>
           <CardDescription className="text-xs">
             Saeful Bachri Dewan Sararea
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="pt-2 px-3 pb-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
             {serverError && (
                 <Alert variant="destructive" className="py-2">
@@ -95,13 +96,29 @@ export function Login() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-sm">Password</Label>
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Masukkan password"
-                {...register('password')}
-                className={`h-9 text-sm ${errors.password ? "border-red-500" : ""}`}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Masukkan password"
+                  {...register('password')}
+                  className={`h-9 text-sm pr-10 ${errors.password ? "border-red-500" : ""}`}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-9 w-9 px-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-500" />
+                  )}
+                  <span className="sr-only">Toggle password visibility</span>
+                </Button>
+              </div>
                {errors.password && (
                   <p className="text-xs text-red-500">{errors.password.message}</p>
               )}
