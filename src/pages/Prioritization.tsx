@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { AlertTriangle, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Calendar, RefreshCw, MapPin } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import { getApiUrl, getApiHeaders } from '../lib/api';
 
+// SABADESA: Activity-focused suggestion interface
 interface Suggestion {
   kecamatan: string;
   score: number;
-  actual_votes: number;
-  target_votes: number;
+  participant_count: number;  // Replaces actual_votes
   event_count: number;
   reason: string;
 }
 
 export function Prioritization() {
+  const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,16 +53,17 @@ export function Prioritization() {
   };
 
   const handleSchedule = (kecamatan: string) => {
-    // Show message guiding user to schedule via the engagement form
-    toast.success(`Buat kegiatan untuk ${kecamatan} di menu "Input Engagement"`);
+    // Navigate to engagement form with pre-filled location
+    toast.success(`Membuat kegiatan baru untuk ${kecamatan}`);
+    navigate(`/engagement-form?kecamatan=${encodeURIComponent(kecamatan)}`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Rekomendasi Prioritas</h2>
-            <p className="text-gray-500">Analisis cerdas wilayah yang membutuhkan atensi segera.</p>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Rekomendasi Wilayah</h2>
+            <p className="text-gray-500">Analisis wilayah yang sering dikunjungi dan butuh perhatian.</p>
         </div>
         <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
             {refreshing ? (
@@ -79,8 +82,8 @@ export function Prioritization() {
             <Card>
                 <CardContent className="pt-6 text-center text-gray-500">
                     <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-                    <p>Tidak ada rekomendasi prioritas mendesak saat ini.</p>
-                    <p className="text-sm">Data suara dan kegiatan tampak seimbang atau data belum cukup.</p>
+                    <p>Belum ada data kegiatan untuk dianalisis.</p>
+                    <p className="text-sm">Mulai tambahkan kegiatan untuk mendapatkan rekomendasi.</p>
                 </CardContent>
             </Card>
         ) : (
@@ -89,12 +92,15 @@ export function Prioritization() {
                     <CardContent className="flex items-center justify-between p-6">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
+                                <MapPin className="h-5 w-5 text-blue-600" />
                                 <h3 className="font-bold text-lg">{item.kecamatan}</h3>
-                                <Badge variant="destructive">Score: {item.score}</Badge>
+                                <Badge variant={item.event_count > 3 ? "default" : "destructive"}>
+                                    {item.event_count > 3 ? 'Sering dikunjungi' : 'Perlu perhatian'}
+                                </Badge>
                             </div>
                             <p className="text-gray-700">{item.reason}</p>
                             <div className="flex gap-4 text-sm text-gray-500 mt-2">
-                                <span>Suara: {item.actual_votes.toLocaleString()} / {item.target_votes.toLocaleString()}</span>
+                                <span>Total Peserta: {(item.participant_count || 0).toLocaleString()}</span>
                                 <span>•</span>
                                 <span>Kegiatan: {item.event_count}</span>
                             </div>
@@ -116,9 +122,9 @@ export function Prioritization() {
             </CardHeader>
             <CardContent>
                 <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600">
-                    <li>Gap Analisis: Selisih antara Target (Potensi) dan Suara Aktual.</li>
-                    <li>Intensitas Engagement: Jumlah kegiatan yang sudah dilakukan di wilayah tersebut.</li>
-                    <li>Skor Urgensi: Semakin tinggi Gap dan semakin rendah Engagement, semakin tinggi prioritas.</li>
+                    <li>Analisis Frekuensi: Seberapa sering kegiatan dilakukan di wilayah tersebut.</li>
+                    <li>Cakupan Peserta: Jumlah total peserta yang terjangkau.</li>
+                    <li>Rekomendasi: Wilayah dengan kegiatan minim atau peserta rendah diprioritaskan.</li>
                 </ul>
             </CardContent>
         </Card>
