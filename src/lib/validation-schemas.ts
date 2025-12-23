@@ -1,31 +1,36 @@
 import { z } from 'zod';
 
-// Helper for NIK validation (basic length check, can be expanded)
+// Helper for NIK validation (16 digits)
 const nikSchema = z.string()
   .min(16, "NIK harus terdiri dari 16 digit")
   .max(16, "NIK harus terdiri dari 16 digit")
   .regex(/^\d+$/, "NIK harus berupa angka");
 
-// Login Schema
-// Login Schema
+// Helper for NIS validation (flexible digits for education)
+const nisSchema = z.string()
+  .min(1, "NIS wajib diisi")
+  .max(20, "NIS maksimal 20 digit")
+  .regex(/^\d+$/, "NIS harus berupa angka");
+
+// SABADESA Login Schema (using username instead of NIK)
 export const loginSchema = z.object({
-  nik: nikSchema,
+  username: z.string().min(1, "Username wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Attendee Schema (for Campaign Management)
-// Attendee Schema (for Campaign Management)
+// SABADESA Attendee Schema (for participants)
 export const attendeeSchema = z.object({
   name: z.string().min(2, "Nama harus minimal 2 karakter"),
-  nik: nikSchema, 
-  phone: z.string()
-    .min(10, "Nomor HP tidak valid (minimal 10 digit)")
-    .regex(/^\d+$/, "Nomor HP harus berupa angka")
-    .optional()
-    .or(z.literal('')),
-  notes: z.string().optional(),
+  nik: z.string().min(1, "NIK/NIS wajib diisi"),  // Can be NIK or NIS
+  identifier_type: z.enum(["NIK", "NIS"]).default("NIK"),
+  kecamatan: z.string().optional(),
+  desa: z.string().optional(),
+  alamat: z.string().optional(),  // Combined address
+  jenis_kelamin: z.enum(["L", "P"]).optional(),
+  pekerjaan: z.string().optional(),
+  usia: z.number().min(0).max(150).optional(),
 });
 
 export type AttendeeFormValues = z.infer<typeof attendeeSchema>;
