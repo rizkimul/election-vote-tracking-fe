@@ -49,7 +49,15 @@ export function ExportData() {
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (filters.kecamatan) params.append('kecamatan', filters.kecamatan);
+      if (filters.kecamatan) {
+        params.append('kecamatan', filters.kecamatan);
+      } else if (filters.dapil) {
+        // If Dapil is selected but no specific Kecamatan, include ALL Kecamatans in that Dapil
+        const dapilKecamatans = getKecamatanByDapil(filters.dapil);
+        dapilKecamatans.forEach(k => {
+          params.append('kecamatan', k.name);
+        });
+      }
       if (filters.desa) params.append('desa', filters.desa);
       
       const queryString = params.toString() ? `?${params.toString()}` : '';
@@ -101,7 +109,12 @@ export function ExportData() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const filterLabel = filters.kecamatan ? `_${filters.kecamatan}` : '';
+    let filterLabel = '';
+    if (filters.kecamatan) {
+      filterLabel = `_${filters.kecamatan}`;
+    } else if (filters.dapil) {
+      filterLabel = `_${filters.dapil}`;
+    }
     link.setAttribute("download", `peserta_kegiatan${filterLabel}_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
