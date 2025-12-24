@@ -8,6 +8,16 @@ import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
 import { getApiUrl, getApiHeaders } from '../lib/api';
 import { DAPIL_OPTIONS, KECAMATAN_DATA, getKecamatanByDapil, getDesaByKecamatan, getGenerationCategory } from '../lib/wilayah-data';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 interface Attendee {
   id: number;
@@ -79,7 +89,17 @@ export function ExportData() {
     }
   };
 
-  const handleExport = () => {
+  const getExportFilename = (extension: string) => {
+    let filterLabel = '';
+    if (filters.kecamatan) {
+      filterLabel = `_${filters.kecamatan}`;
+    } else if (filters.dapil) {
+      filterLabel = `_${filters.dapil}`;
+    }
+    return `peserta_kegiatan${filterLabel}_${new Date().toISOString().slice(0,10)}.${extension}`;
+  };
+
+  const handleExportCSV = () => {
     if (attendees.length === 0) {
       toast.error("Tidak ada data untuk diekspor");
       return;
@@ -104,23 +124,78 @@ export function ExportData() {
       ...rows.map(r => r.join(","))
     ].join("\n");
 
-    // Download Logic
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    let filterLabel = '';
-    if (filters.kecamatan) {
-      filterLabel = `_${filters.kecamatan}`;
-    } else if (filters.dapil) {
-      filterLabel = `_${filters.dapil}`;
-    }
-    link.setAttribute("download", `peserta_kegiatan${filterLabel}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", getExportFilename('csv'));
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
     toast.success(`${attendees.length} data berhasil diekspor ke CSV`);
+  };
+
+  const handleExportExcel = () => {
+    if (attendees.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const data = attendees.map(row => ({
+      "Nama": row.name,
+      "NIK": row.nik,
+      "Alamat": row.alamat,
+      "Jenis Kelamin": row.jenis_kelamin === 'L' ? 'Laki-laki' : row.jenis_kelamin === 'P' ? 'Perempuan' : '',
+      "Pekerjaan": row.pekerjaan,
+      "Usia": row.usia,
+      "Generasi": row.usia ? getGenerationCategory(row.usia) : ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Peserta");
+    
+    XLSX.writeFile(wb, getExportFilename('xlsx'));
+    toast.success(`${attendees.length} data berhasil diekspor ke Excel`);
+  };
+
+  const handleExportPDF = () => {
+    if (attendees.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(16);
+    doc.text("Data Peserta Kegiatan", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Total: ${attendees.length} peserta`, 14, 22);
+    
+    let filterText = "Semua Data";
+    if (filters.kecamatan) filterText = `Kecamatan: ${filters.kecamatan}`;
+    else if (filters.dapil) filterText = `Dapil: ${filters.dapil}`;
+    
+    doc.text(filterText, 14, 27);
+
+    const tableData = attendees.map(row => [
+      row.name,
+      row.nik,
+      row.alamat || '-',
+      row.jenis_kelamin || '-',
+      row.usia || '-'
+    ]);
+
+    autoTable(doc, {
+      head: [["Nama", "NIK", "Alamat", "L/P", "Usia"]],
+      body: tableData,
+      startY: 32,
+    });
+
+    doc.save(getExportFilename('pdf'));
+    toast.success(`${attendees.length} data berhasil diekspor ke PDF`);
   };
 
   const handleDapilChange = (value: string) => {
@@ -145,10 +220,26 @@ export function ExportData() {
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Export Data Peserta</h2>
           <p className="text-gray-500">Filter dan export data peserta kegiatan</p>
         </div>
-        <Button onClick={handleExport} disabled={attendees.length === 0}>
-          <Download className="mr-2 h-4 w-4" />
-          Export ke CSV
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={attendees.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Data
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportCSV}>
+              Export ke CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportExcel}>
+              Export ke Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPDF}>
+              Export ke PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Filters */}
