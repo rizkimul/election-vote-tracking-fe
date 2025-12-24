@@ -4,10 +4,11 @@ import { ActivityWidget } from '../components/dashboard/ActivityWidget';
 import { FilterBar } from '../components/dashboard/FilterBar';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Users, MapPin, TrendingUp, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiUrl, getApiHeaders } from '../lib/api';
-import { TOTAL_KECAMATAN, TOTAL_WILAYAH } from '../lib/wilayah-data';
+import { TOTAL_KECAMATAN, TOTAL_WILAYAH, getKecamatanNames } from '../lib/wilayah-data';
 
 export function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -16,7 +17,8 @@ export function Dashboard() {
     total_votes_import: 0,
     total_events: 0, 
     total_attendees: 0,
-    wilayah_count: 0 
+    wilayah_count: 0,
+    desa_count: 0
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [voteData, setVoteData] = useState([]);
@@ -24,6 +26,7 @@ export function Dashboard() {
   const [sourceData, setSourceData] = useState([]);
   const [kecamatanData, setKecamatanData] = useState<any[]>([]);  // Participants per Kecamatan
   const [loading, setLoading] = useState(true);
+  const [viewLevel, setViewLevel] = useState<'kecamatan' | 'desa' | 'all'>('kecamatan');
   
   const [filters, setFilters] = useState<{dapil: string | null, kecamatan: string | null, dateRange: string}>({
       dapil: null,
@@ -48,6 +51,7 @@ export function Dashboard() {
         const params = new URLSearchParams();
         if (filters.dapil) params.append('dapil', filters.dapil);
         if (filters.kecamatan) params.append('kecamatan', filters.kecamatan);
+        if (viewLevel) params.append('level', viewLevel);
         const queryString = params.toString() ? `?${params.toString()}` : '';
 
         // Fetch Global Stats
@@ -82,15 +86,48 @@ export function Dashboard() {
         const heatmapRes = await fetch(getApiUrl(`/analytics/heatmap${queryString}`), { headers });
         if (heatmapRes.ok) {
             const data = await heatmapRes.json();
+            
+            // Get valid Kecamatan names for comparison (normalized to uppercase)
+            const validKecamatanNames = getKecamatanNames().map(name => name.toUpperCase());
+
             // Transform heatmap data to bar chart format (sorted by participants)
             const barData = data
-                .map((item: any) => ({
-                    name: item.kecamatan,
-                    peserta: item.intensity || 0
-                }))
+                .map((item: any) => {
+                    const rawName = item.kecamatan || "";
+                    // Clean up conventional prefixes if they exist in the data (e.g. "KEC. BOJONGSOANG")
+                    const cleanName = rawName.replace(/^(KEC\.?\s*)/i, '').trim().toUpperCase();
+                    
+                    // Determine type based on view context or data source
+                    const isKecamatanView = viewLevel === 'kecamatan';
+                    const isAllView = viewLevel === 'all';
+
+                    // Get type from backend (if available) or infer
+                    let type = item.type || (isKecamatanView ? 'Kecamatan' : 'Desa');
+                    
+                    // If backend returns lowercase, title case it
+                    if (type === 'participants') type = isKecamatanView ? 'Kecamatan' : 'Desa';
+
+                    // Differentiate name if it's a Desa with same name as Kecamatan
+                    let displayName = cleanName;
+                    
+                    // Only add suffix if looking at mixed data or desa view, and name conflicts
+                    if ((!isKecamatanView || isAllView) && validKecamatanNames.includes(cleanName) && type === 'Desa') {
+                        displayName = `${cleanName} (DESA)`;
+                    }
+
+                    const isKecamatanType = type === 'Kecamatan';
+
+                    return {
+                        name: displayName, // Display name with potential suffix
+                        originalName: rawName,
+                        peserta: item.intensity || 0,
+                        type: type,
+                        fill: isKecamatanType ? '#3b82f6' : '#10b981' // Blue for Kecamatan, Emerald for Desa
+                    };
+                })
                 .filter((item: any) => item.peserta > 0)
                 .sort((a: any, b: any) => b.peserta - a.peserta)
-                .slice(0, 10);  // Top 10 Kecamatan
+                .slice(0, 10);  // Top 10 Areas
             setKecamatanData(barData);
         }
 
@@ -103,14 +140,14 @@ export function Dashboard() {
     };
 
     fetchData();
-  }, [filters]);
+  }, [filters, viewLevel]);
 
   return (
     <div>
       <FilterBar onFilterChange={handleFilterChange} />
       
-      {/* SABADESA Stats - Activity focused, no vote data */}
-      <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {/* SABADESA Stats */}
+      <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Kegiatan"
           value={loading ? "..." : stats.total_events.toLocaleString()}
@@ -118,8 +155,14 @@ export function Dashboard() {
           description="Kegiatan Terlaksana"
         />
         <StatCard
-          title="Wilayah Tersentuh"
+          title="Kecamatan yang Tersentuh"
           value={loading ? "..." : `${stats.wilayah_count || 0}/${TOTAL_KECAMATAN}`} 
+          icon={MapPin}
+          description={`dari ${TOTAL_KECAMATAN} Kecamatan`}
+        />
+        <StatCard
+          title="Desa/Kelurahan yang Tersentuh"
+          value={loading ? "..." : `${stats.desa_count || 0}/${TOTAL_WILAYAH}`}
           icon={MapPin}
           description={`dari ${TOTAL_WILAYAH} Desa/Kelurahan`}
         />
@@ -131,52 +174,75 @@ export function Dashboard() {
         />
       </div>
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        {/* Replaced vote chart with activity distribution */}
+      {/* Main Chart: Participants per Wilayah (Full Width) */}
+      <div className="mb-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Distribusi Kegiatan per Jenis</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>Partisipan per Wilayah</CardTitle>
+            <Select value={viewLevel} onValueChange={(v: any) => setViewLevel(v)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectValue placeholder="Pilih Level" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="kecamatan">Per Kecamatan</SelectItem>
+                    <SelectItem value="desa">Per Desa</SelectItem>
+                    <SelectItem value="all">Gabungan</SelectItem>
+                </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={sourceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, percent }) => {
-                    const truncatedName = name.length > 15 ? name.substring(0, 15) + '...' : name;
-                    return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
-                  }}
-                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
-                >
-                  {sourceData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Participants per Kecamatan Bar Chart - Required by SABADESA */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Partisipan per Kecamatan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={kecamatanData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" fontSize={11} tickLine={false} axisLine={false} width={100} />
-                <Tooltip />
-                <Bar dataKey="peserta" fill="#3b82f6" name="Peserta" radius={[0, 4, 4, 0]} />
+              <BarChart data={kecamatanData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                    dataKey="name" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    interval={0}
+                    tick={{ dy: 10 }}
+                    height={60}
+                    angle={-45}
+                    textAnchor="end"
+                />
+                <YAxis 
+                    type="number" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    allowDecimals={false}
+                />
+                <Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                                <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                                    <p className="font-semibold">{label}</p>
+                                    <p className="text-gray-500 text-xs mb-1">{data.type}</p>
+                                    <p className="text-blue-600 font-medium">
+                                        {payload[0].value} Peserta
+                                    </p>
+                                </div>
+                            );
+                        }
+                        return null;
+                    }}
+                />
+                <Legend 
+                    verticalAlign="top" 
+                    height={36}
+                    payload={[
+                        { value: 'Kecamatan', type: 'rect', color: '#3b82f6', id: 'kecamatan' },
+                        { value: 'Desa', type: 'rect', color: '#10b981', id: 'desa' }
+                    ]}
+                />
+                <Bar dataKey="peserta" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                    {kecamatanData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
             {kecamatanData.length === 0 && (
@@ -186,8 +252,10 @@ export function Dashboard() {
         </Card>
       </div>
 
+      {/* Bottom Row: 3 Columns */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        {/* Col 1: Aktivitas Engagement Terkini */}
+        <Card>
           <CardHeader>
             <CardTitle>Aktivitas Engagement Terkini</CardTitle>
           </CardHeader>
@@ -211,6 +279,39 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Col 2: Distribusi Kegiatan */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribusi Kegiatan per Jenis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={sourceData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, percent }) => {
+                    const truncatedName = name.length > 15 ? name.substring(0, 15) + '...' : name;
+                    return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
+                  }}
+                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
+                >
+                  {sourceData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Col 3: Sumber Engagement */}
         <Card>
           <CardHeader>
             <CardTitle>Sumber Engagement</CardTitle>
