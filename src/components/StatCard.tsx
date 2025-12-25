@@ -32,12 +32,12 @@ export function StatCard({ title, value, icon: Icon, description, trend, classNa
             
             {trend && (
                 <div className="flex items-center mt-1 text-xs">
-                     {trend.direction === 'up' && <ArrowUpRight className="mr-1 h-3 w-3 text-green-500" />}
-                     {trend.direction === 'down' && <ArrowDownRight className="mr-1 h-3 w-3 text-red-500" />}
+                     {trend.direction === 'up' && <ArrowUpRight className="mr-1 h-3 w-3 text-green-600" />}
+                     {trend.direction === 'down' && <ArrowDownRight className="mr-1 h-3 w-3 text-red-600" />}
                      {trend.direction === 'neutral' && <Minus className="mr-1 h-3 w-3 text-gray-500" />}
                      <span className={cn(
-                        trend.direction === 'up' ? "text-green-500" : 
-                        trend.direction === 'down' ? "text-red-500" : "text-gray-500",
+                        trend.direction === 'up' ? "text-green-600" : 
+                        trend.direction === 'down' ? "text-red-600" : "text-gray-500",
                         "font-medium"
                      )}>
                         {trend.value}%

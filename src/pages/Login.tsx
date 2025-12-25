@@ -48,7 +48,7 @@ export function Login() {
       }
 
       const resData = await response.json();
-      login(resData.access_token);
+      login(resData.access_token, resData.refresh_token);
     } catch (err: any) {
       setServerError(err.message || 'Terjadi kesalahan saat login');
     } finally {
@@ -86,10 +86,10 @@ export function Login() {
                 id="username"
                 placeholder="Masukkan username"
                 {...register('username')}
-                className={`h-9 text-sm ${errors.username ? "border-red-500" : ""}`}
+                className={`h-9 text-sm ${errors.username ? "border-red-600" : ""}`}
               />
               {errors.username && (
-                  <p className="text-xs text-red-500">{errors.username.message}</p>
+                  <p className="text-xs text-red-600">{errors.username.message}</p>
               )}
             </div>
             <div className="space-y-1">
@@ -102,7 +102,7 @@ export function Login() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Masukkan password"
                   {...register('password')}
-                  className={`h-9 text-sm pr-10 ${errors.password ? "border-red-500" : ""}`}
+                  className={`h-9 text-sm pr-10 ${errors.password ? "border-red-600" : ""}`}
                 />
                 <Button
                   type="button"
@@ -120,7 +120,7 @@ export function Login() {
                 </Button>
               </div>
                {errors.password && (
-                  <p className="text-xs text-red-500">{errors.password.message}</p>
+                  <p className="text-xs text-red-600">{errors.password.message}</p>
               )}
             </div>
             <Button type="submit" className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-sm" disabled={loading}>

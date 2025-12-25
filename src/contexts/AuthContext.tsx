@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getApiUrl, getApiHeaders } from '../lib/api';
+import { getApiUrl, getApiHeaders, authenticatedFetch } from '../lib/api';
 
 interface User {
   nik: string;
@@ -10,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string) => void;
+  login: (token: string, refreshToken: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -29,20 +29,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ideally here we would validate the token with /auth/me or decode it
       // For now, let's assume if token exists, we are "logged in" sufficiently to reach the dashboard
       // You can add a fetch to /auth/me here later
-       fetchUser(storedToken);
+       fetchUser();
     }
   }, []);
 
-  const fetchUser = async (authToken: string) => {
+  const fetchUser = async () => {
       try {
-          const res = await fetch(getApiUrl('/auth/me'), {
-              headers: getApiHeaders({ 'Authorization': `Bearer ${authToken}` })
-          });
+          // Use authenticatedFetch to handle auto-refresh
+          const res = await authenticatedFetch(getApiUrl('/auth/me'));
           if (res.ok) {
               const userData = await res.json();
               setUser(userData);
           } else {
-              // Token invalid
+              // Token invalid and refresh failed
               logout();
           }
       } catch (e) {
@@ -50,14 +49,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
   }
 
-  const login = (newToken: string) => {
+  const login = (newToken: string, newRefreshToken: string) => {
     localStorage.setItem('token', newToken);
+    localStorage.setItem('refreshToken', newRefreshToken);
     setToken(newToken);
-    fetchUser(newToken);
+    fetchUser();
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setToken(null);
     setUser(null);
   };
