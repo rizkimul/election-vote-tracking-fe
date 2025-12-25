@@ -11,14 +11,15 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Textarea } from '../components/ui/textarea';
 import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
-import { Calendar, UserPlus, Users, IdCard, GraduationCap } from 'lucide-react';
+import { Calendar, UserPlus, Users, IdCard, GraduationCap, Pencil, Trash2, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DuplicateNIKConfirmationDialog } from '../components/DuplicateNIKConfirmationDialog';
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog';
 import { useForm, Controller } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { getApiUrl, getApiHeaders } from '../lib/api';
+import { getApiUrl, getApiHeaders, authenticatedFetch } from '../lib/api';
 import { 
   DAPIL_OPTIONS, 
   KECAMATAN_DATA, 
@@ -60,6 +61,7 @@ type AttendeeInputFormValues = z.infer<typeof attendeeInputSchema>;
 interface ActivityType {
   id: number;
   name: string;
+  max_participants: number;
 }
 
 interface Event {
@@ -106,6 +108,16 @@ export function EngagementForm() {
     activities: Array<{activity_name: string; date: string; location: string}>;
     pendingData: AttendeeInputFormValues | null;
   }>({ isOpen: false, nik: '', activities: [], pendingData: null });
+
+  // Delete Dialog State
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    item: Event | null;
+  }>({ isOpen: false, item: null });
+
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
 
   // Get filtered options based on selection
   const eventKecamatanOptions = getKecamatanNames();
@@ -194,18 +206,14 @@ export function EngagementForm() {
   // --- Fetchers ---
   const fetchActivityTypes = async () => {
     try {
-      const res = await fetch(getApiUrl('/activity-types/'), {
-        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
-      });
+      const res = await authenticatedFetch(getApiUrl('/activity-types/'));
       if (res.ok) setActivityTypes(await res.json());
     } catch(e) { console.error(e); }
   };
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch(getApiUrl('/events/'), {
-        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
-      });
+      const res = await authenticatedFetch(getApiUrl('/events/'));
       if (res.ok) {
         const data = await res.json();
         setEvents(data.items || []); 
@@ -215,9 +223,7 @@ export function EngagementForm() {
 
   const fetchAttendees = async (eventId: string) => {
     try {
-      const res = await fetch(getApiUrl(`/events/${eventId}/attendees`), {
-        headers: getApiHeaders({ 'Authorization': `Bearer ${token}` })
-      });
+      const res = await authenticatedFetch(getApiUrl(`/events/${eventId}/attendees`));
       if (res.ok) setAttendees(await res.json());
     } catch(e) { console.error(e); }
   };
@@ -228,11 +234,17 @@ export function EngagementForm() {
       // Auto-set dapil based on kecamatan if not selected
       const dapil = data.dapil || getDapilByKecamatan(data.kecamatan);
       
-      const res = await fetch(getApiUrl('/events/'), {
+      // Validate target participants against max limit
+      const activityType = activityTypes.find(t => String(t.id) === data.activity_type_id);
+      if (activityType && data.target_participants > activityType.max_participants) {
+        toast.error(`Target peserta melebihi batas maksimal (${activityType.max_participants})`);
+        return;
+      }
+
+      const res = await authenticatedFetch(getApiUrl('/events/'), {
         method: 'POST',
         headers: getApiHeaders({ 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
         }),
         body: JSON.stringify({
           ...data,
@@ -269,11 +281,10 @@ export function EngagementForm() {
       
       console.log('Adding attendee with forceAdd:', forceAdd, 'URL:', url);
         
-      const res = await fetch(url, {
+      const res = await authenticatedFetch(url, {
         method: 'POST',
         headers: getApiHeaders({ 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
         }),
         body: JSON.stringify({
           event_id: parseInt(selectedEventId),
@@ -320,6 +331,101 @@ export function EngagementForm() {
     } catch(e: any) {
       toast.error(e.message);
     }
+
+  };
+
+  const onUpdateEvent = async (data: CreateEventFormValues) => {
+    if (!editingEventId) return;
+
+    try {
+        const dapil = data.dapil || getDapilByKecamatan(data.kecamatan);
+        
+        // Validate target participants
+        const activityType = activityTypes.find(t => String(t.id) === data.activity_type_id);
+        if (activityType && data.target_participants > activityType.max_participants) {
+          toast.error(`Target peserta melebihi batas maksimal (${activityType.max_participants})`);
+          return;
+        }
+
+        const res = await authenticatedFetch(getApiUrl(`/events/${editingEventId}`), {
+          method: 'PUT',
+          headers: getApiHeaders({ 
+            'Content-Type': 'application/json',
+          }),
+          body: JSON.stringify({
+            ...data,
+            dapil: dapil,
+            activity_type_id: parseInt(data.activity_type_id)
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Gagal mengubah event');
+        }
+
+        toast.success('Kegiatan berhasil diperbarui');
+        fetchEvents();
+        cancelEdit();
+    } catch(e: any) {
+        toast.error(e.message);
+    }
+  };
+
+  const handleEdit = (event: Event) => {
+      setIsEditing(true);
+      setEditingEventId(event.id);
+      
+      eventForm.setValue('activity_type_id', String(event.activity_type_id));
+      eventForm.setValue('date', event.date);
+      eventForm.setValue('target_participants', event.target_participants);
+      
+      if (event.kecamatan) {
+          setSelectedEventKecamatan(event.kecamatan);
+          eventForm.setValue('kecamatan', event.kecamatan);
+          if (event.desa) eventForm.setValue('desa', event.desa);
+          
+          const dapil = getDapilByKecamatan(event.kecamatan);
+          if (dapil) {
+              setSelectedEventDapil(dapil);
+              eventForm.setValue('dapil', dapil);
+          }
+      }
+      
+      setActiveTab('events');
+      // Scroll to top of form smoothly
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+      setIsEditing(false);
+      setEditingEventId(null);
+      eventForm.reset();
+      setSelectedEventDapil('');
+      setSelectedEventKecamatan('');
+  };
+
+  const handleDeleteClick = (event: Event) => {
+      setDeleteDialog({ isOpen: true, item: event });
+  };
+
+  const handleConfirmDelete = async () => {
+      if (!deleteDialog.item) return;
+      
+      try {
+          const res = await authenticatedFetch(getApiUrl(`/events/${deleteDialog.item.id}`), {
+              method: 'DELETE'
+          });
+          
+          if (!res.ok) throw new Error("Gagal menghapus kegiatan");
+          
+          toast.success("Kegiatan berhasil dihapus");
+          fetchEvents();
+      } catch (e: any) {
+          toast.error(e.message);
+      } finally {
+          setDeleteDialog({ isOpen: false, item: null });
+      }
   };
 
   const handleDuplicateConfirm = async () => {
@@ -387,11 +493,11 @@ export function EngagementForm() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-3">
               <CardHeader>
-                <CardTitle>Buat Kegiatan Baru</CardTitle>
-                <CardDescription>Jadwalkan kegiatan baru</CardDescription>
+                <CardTitle>{isEditing ? 'Edit Kegiatan' : 'Buat Kegiatan Baru'}</CardTitle>
+                <CardDescription>{isEditing ? 'Ubah detail kegiatan' : 'Jadwalkan kegiatan baru'}</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={eventForm.handleSubmit(onCreateEvent)} className="space-y-4">
+                <form onSubmit={eventForm.handleSubmit(isEditing ? onUpdateEvent : onCreateEvent)} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Jenis Kegiatan</Label>
                     <Controller
@@ -399,7 +505,7 @@ export function EngagementForm() {
                       name="activity_type_id"
                       render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger className={eventForm.formState.errors.activity_type_id ? "border-red-500" : ""}>
+                          <SelectTrigger className={eventForm.formState.errors.activity_type_id ? "border-red-600" : ""}>
                             <SelectValue placeholder="Pilih jenis kegiatan" />
                           </SelectTrigger>
                           <SelectContent>
@@ -411,7 +517,7 @@ export function EngagementForm() {
                       )}
                     />
                     {eventForm.formState.errors.activity_type_id && (
-                      <p className="text-xs text-red-500">{eventForm.formState.errors.activity_type_id.message}</p>
+                      <p className="text-xs text-red-600">{eventForm.formState.errors.activity_type_id.message}</p>
                     )}
                   </div>
 
@@ -430,7 +536,7 @@ export function EngagementForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Kecamatan <span className="text-red-500">*</span></Label>
+                      <Label>Kecamatan <span className="text-red-600">*</span></Label>
                       <Combobox
                         options={eventKecamatanOptions.map(kec => ({ value: kec, label: kec }))}
                         value={selectedEventKecamatan}
@@ -438,10 +544,10 @@ export function EngagementForm() {
                         placeholder="Pilih Kecamatan"
                         searchPlaceholder="Cari kecamatan..."
                         emptyText="Kecamatan tidak ditemukan."
-                        className={eventForm.formState.errors.kecamatan ? "border-red-500" : ""}
+                        className={eventForm.formState.errors.kecamatan ? "border-red-600" : ""}
                       />
                       {eventForm.formState.errors.kecamatan && (
-                        <p className="text-xs text-red-500">{eventForm.formState.errors.kecamatan.message}</p>
+                        <p className="text-xs text-red-600">{eventForm.formState.errors.kecamatan.message}</p>
                       )}
                     </div>
                   </div>
@@ -465,10 +571,10 @@ export function EngagementForm() {
                       <Input 
                         type="date"
                         {...eventForm.register('date')}
-                        className={eventForm.formState.errors.date ? "border-red-500" : ""}
+                        className={eventForm.formState.errors.date ? "border-red-600" : ""}
                       />
                       {eventForm.formState.errors.date && (
-                        <p className="text-xs text-red-500">{eventForm.formState.errors.date.message}</p>
+                        <p className="text-xs text-red-600">{eventForm.formState.errors.date.message}</p>
                       )}
                     </div>
 
@@ -477,15 +583,41 @@ export function EngagementForm() {
                       <Input 
                         type="number" 
                         {...eventForm.register('target_participants', { valueAsNumber: true })}
-                        className={eventForm.formState.errors.target_participants ? "border-red-500" : ""}
+                        className={eventForm.formState.errors.target_participants ? "border-red-600" : ""}
                       />
                       {eventForm.formState.errors.target_participants && (
-                        <p className="text-xs text-red-500">{eventForm.formState.errors.target_participants.message}</p>
+                        <p className="text-xs text-red-600">{eventForm.formState.errors.target_participants.message}</p>
                       )}
+                      {/* Max participants hint */}
+                      {(() => {
+                        const selectedTypeId = eventForm.watch('activity_type_id');
+                        const type = activityTypes.find(t => String(t.id) === selectedTypeId);
+                        if (type) {
+                          return (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Maksimal: {type.max_participants} peserta
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">Buat Kegiatan</Button>
+                  <div className="flex gap-2">
+                    <Button type="submit" className="flex-1">
+                      {isEditing ? 'Simpan Perubahan' : 'Buat Kegiatan'}
+                    </Button>
+                    {isEditing && (
+                        <Button 
+                            type="button" 
+                            variant="destructive"
+                            onClick={cancelEdit}
+                        >
+                            <X className="mr-2 h-4 w-4" /> Batal
+                        </Button>
+                    )}
+                  </div>
                 </form>
               </CardContent>
             </Card>
@@ -503,6 +635,7 @@ export function EngagementForm() {
                       <TableHead>Kegiatan</TableHead>
                       <TableHead>Lokasi</TableHead>
                       <TableHead>Target</TableHead>
+                      <TableHead className="w-[100px]">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -521,6 +654,16 @@ export function EngagementForm() {
                           </TableCell>
                           <TableCell>{ev.kecamatan || ev.dapil || '-'}</TableCell>
                           <TableCell>{ev.target_participants}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => handleEdit(ev)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleDeleteClick(ev)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -597,7 +740,7 @@ export function EngagementForm() {
                     <div className="space-y-2 mt-4">
                       <Label>
                         {attendeeForm.watch('identifier_type') === 'NIS' && isEducationActivity ? 'NIS' : 'NIK'} 
-                        <span className="text-red-500"> *</span>
+                        <span className="text-red-600"> *</span>
                       </Label>
                       <Input 
                         placeholder={attendeeForm.watch('identifier_type') === 'NIS' && isEducationActivity 
@@ -606,22 +749,22 @@ export function EngagementForm() {
                         }
                         {...attendeeForm.register('nik')}
                         maxLength={attendeeForm.watch('identifier_type') === 'NIK' ? 16 : 20}
-                        className={attendeeForm.formState.errors.nik ? "border-red-500" : ""}
+                        className={attendeeForm.formState.errors.nik ? "border-red-600" : ""}
                       />
                       {attendeeForm.formState.errors.nik && (
-                        <p className="text-xs text-red-500">{attendeeForm.formState.errors.nik.message}</p>
+                        <p className="text-xs text-red-600">{attendeeForm.formState.errors.nik.message}</p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Nama Lengkap <span className="text-red-500">*</span></Label>
+                      <Label>Nama Lengkap <span className="text-red-600">*</span></Label>
                       <Input 
                         placeholder="Nama Peserta" 
                         {...attendeeForm.register('name')}
-                        className={attendeeForm.formState.errors.name ? "border-red-500" : ""}
+                        className={attendeeForm.formState.errors.name ? "border-red-600" : ""}
                       />
                       {attendeeForm.formState.errors.name && (
-                        <p className="text-xs text-red-500">{attendeeForm.formState.errors.name.message}</p>
+                        <p className="text-xs text-red-600">{attendeeForm.formState.errors.name.message}</p>
                       )}
                     </div>
                     
@@ -754,6 +897,16 @@ export function EngagementForm() {
         onConfirm={handleDuplicateConfirm}
         nik={duplicateDialog.nik}
         activities={duplicateDialog.activities}
+      />
+
+      <DeleteConfirmationDialog 
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, item: null })}
+        onConfirm={handleConfirmDelete}
+        itemName={deleteDialog.item ? 
+            `${activityTypes.find(t => t.id === deleteDialog.item?.activity_type_id)?.name} (${deleteDialog.item?.date})` 
+            : 'Kegiatan'}
+        description="Jika kegiatan ini dihapus, peserta yang mengikuti kegiatan ini juga akan dihapus."
       />
     </div>
   );
