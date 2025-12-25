@@ -230,14 +230,16 @@ export function Dashboard() {
                         return null;
                     }}
                 />
-                <Legend 
-                    verticalAlign="top" 
-                    height={36}
-                    payload={[
-                        { value: 'Kecamatan', type: 'rect', color: '#3b82f6', id: 'kecamatan' },
-                        { value: 'Desa', type: 'rect', color: '#10b981', id: 'desa' }
-                    ]}
-                />
+                {viewLevel === 'all' && (
+                    <Legend 
+                        verticalAlign="top" 
+                        height={36}
+                        payload={[
+                            { value: 'Kecamatan', type: 'rect', color: '#3b82f6', id: 'kecamatan' },
+                            { value: 'Desa', type: 'rect', color: '#10b981', id: 'desa' }
+                        ]}
+                    />
+                )}
                 <Bar dataKey="peserta" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
                     {kecamatanData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
