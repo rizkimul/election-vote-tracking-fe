@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, AlertTriangle, MapPin, Calendar, UserPlus } from 'lucide-react';
+import { X, AlertTriangle, MapPin, Calendar, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Activity {
   activity_name: string;
@@ -117,20 +117,25 @@ export function DuplicateNIKConfirmationDialog({
                     style={{ width: 'fit-content' }}
                   >
                     +{remainingCount} lainnya
+                    <ChevronDown size={14} className="ml-1" />
                   </button>
                 </div>
               )}
               
               {/* Collapse button when expanded */}
               {showAllActivities && sortedActivities.length > 3 && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div 
+                  className="border-t border-gray-200 dark:border-gray-700"
+                  style={{ marginTop: '0.5rem', paddingTop: '0.875rem' }}
+                >
                   <button
                     type="button"
                     onClick={() => setShowAllActivities(false)}
-                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                     style={{ width: 'fit-content' }}
                   >
                     Tampilkan lebih sedikit
+                    <ChevronUp size={14} className="ml-1" />
                   </button>
                 </div>
               )}
