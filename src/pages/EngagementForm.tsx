@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Textarea } from '../components/ui/textarea';
 import { Combobox } from '../components/ui/combobox';
 import { toast } from 'sonner';
-import { Calendar, UserPlus, Users, IdCard, GraduationCap, Pencil, Trash2, X } from 'lucide-react';
+import { Calendar, UserPlus, Users, IdCard, GraduationCap, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DuplicateNIKConfirmationDialog } from '../components/DuplicateNIKConfirmationDialog';
 import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog';
@@ -100,6 +100,16 @@ export function EngagementForm() {
 
   // Attendee form location state
   const [attendeeKecamatan, setAttendeeKecamatan] = useState<string>('');
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [eventDateFilter, setEventDateFilter] = useState('');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const ITEMS_PER_PAGE = 5;
 
   // Duplicate NIK confirmation dialog state
   const [duplicateDialog, setDuplicateDialog] = useState<{
@@ -129,6 +139,68 @@ export function EngagementForm() {
   const attendeeDesaOptions = attendeeKecamatan 
     ? getDesaByKecamatan(attendeeKecamatan).map(d => d.name)
     : [];
+
+  const filteredAttendees = useMemo(() => {
+    if (!searchQuery) return attendees;
+    const lowerQuery = searchQuery.toLowerCase();
+    return attendees.filter(att => 
+      att.name.toLowerCase().includes(lowerQuery) ||
+      att.nik.includes(lowerQuery) ||
+      (att.alamat?.toLowerCase().includes(lowerQuery)) ||
+      (att.kecamatan?.toLowerCase().includes(lowerQuery)) ||
+      (att.desa?.toLowerCase().includes(lowerQuery))
+    );
+  }, [attendees, searchQuery]);
+
+
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [eventSearchQuery, eventDateFilter]);
+
+
+  // --- Fetchers ---
+  const fetchActivityTypes = async () => {
+    try {
+      const res = await authenticatedFetch(getApiUrl('/activity-types/'));
+      if (res.ok) setActivityTypes(await res.json());
+    } catch(e) { console.error(e); }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append('page', String(currentPage));
+      params.append('size', String(ITEMS_PER_PAGE));
+      if (eventSearchQuery) params.append('search', eventSearchQuery);
+      if (eventDateFilter) {
+          params.append('date_from', eventDateFilter);
+          params.append('date_to', eventDateFilter);
+      }
+
+      const res = await authenticatedFetch(getApiUrl(`/events/?${params.toString()}`));
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data.items || []); 
+        setTotalItems(data.total || 0);
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const fetchAttendees = async (eventId: string) => {
+    try {
+      const res = await authenticatedFetch(getApiUrl(`/events/${eventId}/attendees`));
+      if (res.ok) setAttendees(await res.json());
+    } catch(e) { console.error(e); }
+  };
+
+  // Fetch events when pagination or filters change
+  useEffect(() => {
+    fetchEvents();
+  }, [currentPage, eventSearchQuery, eventDateFilter]);
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   // -- Forms --
   const eventForm = useForm<CreateEventFormValues>({
@@ -166,7 +238,7 @@ export function EngagementForm() {
 
   useEffect(() => {
     fetchActivityTypes();
-    fetchEvents();
+    // fetchEvents(); // Removed initial call here, it's handled by the dependency effect above
     
     // Pre-fill kecamatan from URL parameter (from Jadwalkan button)
     const kecamatanParam = searchParams.get('kecamatan');
@@ -204,29 +276,7 @@ export function EngagementForm() {
   }, [selectedEventId, events]);
 
   // --- Fetchers ---
-  const fetchActivityTypes = async () => {
-    try {
-      const res = await authenticatedFetch(getApiUrl('/activity-types/'));
-      if (res.ok) setActivityTypes(await res.json());
-    } catch(e) { console.error(e); }
-  };
 
-  const fetchEvents = async () => {
-    try {
-      const res = await authenticatedFetch(getApiUrl('/events/'));
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(data.items || []); 
-      }
-    } catch(e) { console.error(e); }
-  };
-
-  const fetchAttendees = async (eventId: string) => {
-    try {
-      const res = await authenticatedFetch(getApiUrl(`/events/${eventId}/attendees`));
-      if (res.ok) setAttendees(await res.json());
-    } catch(e) { console.error(e); }
-  };
 
   // --- Handlers ---
   const onCreateEvent = async (data: CreateEventFormValues) => {
@@ -623,9 +673,41 @@ export function EngagementForm() {
             </Card>
 
             <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Daftar Kegiatan</CardTitle>
-                <CardDescription>Kegiatan yang telah dijadwalkan</CardDescription>
+              <CardHeader className="flex flex-col space-y-4 pb-7">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                        <CardTitle>Daftar Kegiatan</CardTitle>
+                        <CardDescription>Kegiatan yang telah dijadwalkan</CardDescription>
+                    </div>
+                </div>
+                
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                         <Input 
+                           placeholder="Cari kegiatan, lokasi..." 
+                           value={eventSearchQuery}
+                           onChange={(e) => setEventSearchQuery(e.target.value)}
+                           className="pl-10"
+                         />
+                    </div>
+                    <Input 
+                        type="date"
+                        className="w-[180px]"
+                        value={eventDateFilter}
+                        onChange={(e) => setEventDateFilter(e.target.value)}
+                    />
+                    {eventDateFilter && (
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setEventDateFilter('')}
+                            title="Hapus filter tanggal"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -635,13 +717,15 @@ export function EngagementForm() {
                       <TableHead>Kegiatan</TableHead>
                       <TableHead>Lokasi</TableHead>
                       <TableHead>Target</TableHead>
-                      <TableHead className="w-[100px]">Aksi</TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {events.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">Belum ada kegiatan</TableCell>
+                        <TableCell colSpan={5} className="text-center text-gray-500">
+                            {totalItems === 0 ? "Belum ada kegiatan" : "Tidak ada kegiatan yang cocok"}
+                        </TableCell>
                       </TableRow>
                     )}
                     {events.map((ev) => {
@@ -656,11 +740,17 @@ export function EngagementForm() {
                           <TableCell>{ev.target_participants}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-500" onClick={() => handleEdit(ev)}>
-                                    <Pencil className="h-4 w-4" />
+                                <style>{`
+                                  .icon-yellow { color: #eab308; transition: color 0.2s; }
+                                  .icon-yellow:hover { color: #a16207; }
+                                  .icon-red { color: #ef4444; transition: color 0.2s; }
+                                  .icon-red:hover { color: #b91c1c; }
+                                `}</style>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(ev)}>
+                                    <Pencil className="h-4 w-4 icon-yellow" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleDeleteClick(ev)}>
-                                    <Trash2 className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(ev)}>
+                                    <Trash2 className="h-4 w-4 icon-red" />
                                 </Button>
                             </div>
                           </TableCell>
@@ -669,6 +759,80 @@ export function EngagementForm() {
                     })}
                   </TableBody>
                 </Table>
+
+                {/* Pagination Controls */}
+                {/* Pagination Controls */}
+                <div className="flex items-center justify-end space-x-1 py-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  {(() => {
+                    const pages = [];
+                    // Logic to determine page numbers to show
+                    if (totalPages <= 7) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      let startPage = Math.max(2, currentPage - 1);
+                      let endPage = Math.min(totalPages - 1, currentPage + 1);
+                      
+                      if (currentPage <= 4) {
+                          endPage = 5;
+                          startPage = 2; 
+                      }
+                      if (currentPage >= totalPages - 3) {
+                          startPage = totalPages - 4;
+                          endPage = totalPages - 1;
+                      }
+                      
+                      if (startPage > 2) {
+                          pages.push('...');
+                      }
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                          pages.push(i);
+                      }
+                      
+                      if (endPage < totalPages - 1) {
+                          pages.push('...');
+                      }
+                      
+                      if (totalPages > 1) pages.push(totalPages);
+                    }
+
+                    return pages.map((page, idx) => {
+                      if (page === '...') {
+                        return <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>;
+                      }
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="icon"
+                          onClick={() => setCurrentPage(page as number)}
+                          className="h-8 w-8"
+                        >
+                          {page}
+                        </Button>
+                      );
+                    });
+                  })()}
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -854,9 +1018,20 @@ export function EngagementForm() {
             </Card>
 
             <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Daftar Peserta</CardTitle>
-                <CardDescription>Peserta terdaftar untuk kegiatan ini</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                <div className="space-y-1">
+                  <CardTitle>Daftar Peserta</CardTitle>
+                  <CardDescription>Peserta terdaftar untuk kegiatan ini</CardDescription>
+                </div>
+                <div className="relative w-64">
+                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                   <Input 
+                     placeholder="Cari nama, alamat, NIK..." 
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="pl-10"
+                   />
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -875,7 +1050,7 @@ export function EngagementForm() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {attendees.map(att => (
+                    {filteredAttendees.map(att => (
                       <TableRow key={att.id}>
                         <TableCell className="font-medium">{att.name}</TableCell>
                         <TableCell>{att.alamat || `${att.kecamatan || ''}, ${att.desa || ''}`.trim() || '-'}</TableCell>

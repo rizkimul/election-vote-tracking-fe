@@ -241,13 +241,20 @@ export function ActivityMaster() {
                   <TableCell>{item.max_participants}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <style>{`
+                        .icon-yellow { color: #eab308; transition: color 0.2s; }
+                        .icon-yellow:hover { color: #a16207; }
+                        .icon-red { color: #ef4444; transition: color 0.2s; }
+                        .icon-red:hover { color: #b91c1c; }
+                        .icon-gray { color: #d1d5db; }
+                      `}</style>
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={() => handleEdit(item)}
                         disabled={loading}
                       >
-                        <Pencil className="h-4 w-4 text-blue-500 hover:text-blue-700" />
+                        <Pencil className="h-4 w-4 icon-yellow" />
                       </Button>
                       <Button 
                         variant="ghost" 
@@ -255,7 +262,7 @@ export function ActivityMaster() {
                         onClick={() => handleDelete(item)}
                         disabled={deletingId === item.id || loading}
                       >
-                        <Trash2 className={`h-4 w-4 ${deletingId === item.id ? 'text-gray-300' : 'text-red-500 hover:text-red-700'}`} />
+                        <Trash2 className={`h-4 w-4 ${deletingId === item.id ? 'icon-gray' : 'icon-red'}`} />
                       </Button>
                     </div>
                   </TableCell>
