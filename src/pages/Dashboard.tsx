@@ -229,7 +229,7 @@ export function Dashboard() {
             </Select>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
               <div style={{ minWidth: Math.max(kecamatanData.length * 60, 400), height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={kecamatanData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
@@ -290,6 +290,7 @@ export function Dashboard() {
                 </ResponsiveContainer>
               </div>
             </div>
+            <p className="text-xs text-gray-400 mt-2 lg:hidden text-center">← Geser untuk melihat lebih banyak →</p>
             {kecamatanData.length === 0 && (
               <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per kecamatan</p>
             )}
@@ -302,48 +303,53 @@ export function Dashboard() {
             <CardTitle className="text-base">Partisipan per Usia</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={ageData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                    dataKey="label" 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false}
-                    tick={{ dy: 5 }}
-                />
-                <YAxis 
-                    type="number" 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    allowDecimals={false}
-                    width={35}
-                />
-                <Tooltip 
-                    cursor={{fill: 'transparent'}}
-                    content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                                <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
-                                    <p className="text-gray-500 text-xs mb-1">Usia {data.label} tahun</p>
-                                    <p className="text-blue-600 font-medium">
-                                        {payload[0].value} Peserta
-                                    </p>
-                                </div>
-                            );
-                        }
-                        return null;
-                    }}
-                />
-                <Bar dataKey="value" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
-                    {ageData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin' }}>
+              <div style={{ minWidth: Math.max(ageData.length * 50, 300), height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={ageData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                        dataKey="label" 
+                        fontSize={11} 
+                        tickLine={false} 
+                        axisLine={false}
+                        tick={{ dy: 5 }}
+                    />
+                    <YAxis 
+                        type="number" 
+                        fontSize={11} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        allowDecimals={false}
+                        width={35}
+                    />
+                    <Tooltip 
+                        cursor={{fill: 'transparent'}}
+                        content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                    <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                                        <p className="text-gray-500 text-xs mb-1">Usia {data.label} tahun</p>
+                                        <p className="text-blue-600 font-medium">
+                                            {payload[0].value} Peserta
+                                        </p>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }}
+                    />
+                    <Bar dataKey="value" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                        {ageData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2 lg:hidden text-center">← Geser untuk melihat lebih banyak →</p>
             {ageData.length === 0 && (
               <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per generasi</p>
             )}
@@ -386,14 +392,14 @@ export function Dashboard() {
               <CardTitle className="text-base">Sumber Engagement (%)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={sourceData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
+                    innerRadius={40}
+                    outerRadius={60}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -416,9 +422,18 @@ export function Dashboard() {
                       return null;
                     }}
                   />
-                  <Legend wrapperStyle={{fontSize: '12px'}} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="max-h-20 overflow-y-auto mt-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {sourceData.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center gap-1 text-xs">
+                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate max-w-[80px]" title={entry.name}>{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -428,14 +443,14 @@ export function Dashboard() {
               <CardTitle className="text-base">Jenis Kelamin Peserta (%)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={genderData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
+                    innerRadius={40}
+                    outerRadius={60}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -458,9 +473,18 @@ export function Dashboard() {
                       return null;
                     }}
                   />
-                  <Legend wrapperStyle={{fontSize: '12px'}} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="max-h-20 overflow-y-auto mt-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {genderData.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center gap-1 text-xs">
+                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate max-w-[80px]" title={entry.name}>{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               {genderData.length === 0 && (
                 <p className="text-center text-gray-500 text-sm">Belum ada data</p>
               )}
@@ -473,14 +497,14 @@ export function Dashboard() {
               <CardTitle className="text-base">Usia Peserta (%)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={ageData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
+                    innerRadius={40}
+                    outerRadius={60}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -503,9 +527,18 @@ export function Dashboard() {
                       return null;
                     }}
                   />
-                  <Legend wrapperStyle={{fontSize: '12px'}} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="max-h-20 overflow-y-auto mt-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {ageData.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center gap-1 text-xs">
+                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate max-w-[80px]" title={entry.name}>{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               {ageData.length === 0 && (
                 <p className="text-center text-gray-500 text-sm">Belum ada data</p>
               )}
@@ -518,14 +551,14 @@ export function Dashboard() {
               <CardTitle className="text-base">Kegiatan per Kecamatan (%)</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={activitiesPerKecamatanData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
+                    innerRadius={40}
+                    outerRadius={60}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -548,9 +581,18 @@ export function Dashboard() {
                       return null;
                     }}
                   />
-                  <Legend wrapperStyle={{fontSize: '12px'}} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="max-h-20 overflow-y-auto mt-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {activitiesPerKecamatanData.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center gap-1 text-xs">
+                      <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate max-w-[80px]" title={entry.name}>{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               {activitiesPerKecamatanData.length === 0 && (
                 <p className="text-center text-gray-500 text-sm">Belum ada data</p>
               )}
