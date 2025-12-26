@@ -50,10 +50,10 @@ const attendeeInputSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter"),
   kecamatan: z.string().optional(),
   desa: z.string().optional(),
-  alamat: z.string().optional(),  // Combined address (replaces kampung + rt_rw)
-  jenis_kelamin: z.enum(["L", "P"]).optional(),
-  pekerjaan: z.string().optional(),
-  usia: z.string().optional(),
+  alamat: z.string().min(1, "Alamat Lengkap wajib diisi"),  // Combined address (replaces kampung + rt_rw)
+  jenis_kelamin: z.enum(["L", "P"], { message: "Jenis Kelamin wajib dipilih" }),
+  pekerjaan: z.string().min(1, "Pekerjaan wajib diisi"),
+  usia: z.string().min(1, "Usia wajib diisi"),
 });
 
 type AttendeeInputFormValues = z.infer<typeof attendeeInputSchema>;
@@ -916,18 +916,21 @@ export function EngagementForm() {
 
                     {/* Alamat (combined address) */}
                     <div className="space-y-2">
-                      <Label>Alamat Lengkap</Label>
+                      <Label>Alamat Lengkap <span className="text-red-600">*</span></Label>
                       <Textarea 
                         placeholder="Kampung, RT/RW, Detail Alamat"
                         {...attendeeForm.register('alamat')}
-                        className="h-16"
+                        className={`h-16 ${attendeeForm.formState.errors.alamat ? "border-red-600" : ""}`}
                       />
+                      {attendeeForm.formState.errors.alamat && (
+                        <p className="text-xs text-red-600">{attendeeForm.formState.errors.alamat.message}</p>
+                      )}
                     </div>
 
                     {/* Demographic fields */}
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-2">
-                        <Label>Jenis Kelamin</Label>
+                        <Label>Jenis Kelamin <span className="text-red-600">*</span></Label>
                         <Controller
                           control={attendeeForm.control}
                           name="jenis_kelamin"
@@ -943,23 +946,34 @@ export function EngagementForm() {
                             </Select>
                           )}
                         />
+                        {attendeeForm.formState.errors.jenis_kelamin && (
+                          <p className="text-xs text-red-600">{attendeeForm.formState.errors.jenis_kelamin.message}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <Label>Pekerjaan</Label>
+                        <Label>Pekerjaan <span className="text-red-600">*</span></Label>
                         <Input 
                           placeholder="Pekerjaan"
                           {...attendeeForm.register('pekerjaan')}
+                          className={attendeeForm.formState.errors.pekerjaan ? "border-red-600" : ""}
                         />
+                        {attendeeForm.formState.errors.pekerjaan && (
+                          <p className="text-xs text-red-600">{attendeeForm.formState.errors.pekerjaan.message}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <Label>Usia</Label>
+                        <Label>Usia <span className="text-red-600">*</span></Label>
                         <Input 
                           type="number"
                           placeholder="Tahun"
                           {...attendeeForm.register('usia')}
                           min={0}
                           max={150}
+                          className={attendeeForm.formState.errors.usia ? "border-red-600" : ""}
                         />
+                        {attendeeForm.formState.errors.usia && (
+                          <p className="text-xs text-red-600">{attendeeForm.formState.errors.usia.message}</p>
+                        )}
                       </div>
                     </div>
 

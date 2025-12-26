@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
-import { Calendar, Filter } from 'lucide-react';
+import { Calendar, Filter, RotateCcw } from 'lucide-react';
 import { DAPIL_OPTIONS, getKecamatanByDapil, getKecamatanNames } from '../../lib/wilayah-data';
 
 interface FilterBarProps {
@@ -39,6 +39,19 @@ export function FilterBar({ onFilterChange }: FilterBarProps) {
               dapil: selectedDapil === "all-districts" ? null : selectedDapil,
               kecamatan: selectedKecamatan === "all-subdistricts" ? null : selectedKecamatan,
               dateRange: selectedDateRange
+          });
+      }
+  };
+
+  const handleReset = () => {
+      setSelectedDapil("all-districts");
+      setSelectedKecamatan("all-subdistricts");
+      setSelectedDateRange("30days");
+      if (onFilterChange) {
+          onFilterChange({
+              dapil: null,
+              kecamatan: null,
+              dateRange: "30days"
           });
       }
   };
@@ -91,6 +104,10 @@ export function FilterBar({ onFilterChange }: FilterBarProps) {
           <Button variant="outline" className="ml-auto" onClick={handleApply}>
             <Filter className="mr-2 h-4 w-4" />
             Terapkan Filter
+          </Button>
+          <Button variant="ghost" onClick={handleReset}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset
           </Button>
         </div>
       </CardContent>

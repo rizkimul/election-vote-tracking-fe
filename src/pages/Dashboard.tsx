@@ -24,6 +24,9 @@ export function Dashboard() {
   const [voteData, setVoteData] = useState([]);
   const [engagementData, setEngagementData] = useState([]);
   const [sourceData, setSourceData] = useState([]);
+  const [genderData, setGenderData] = useState<any[]>([]);
+  const [ageData, setAgeData] = useState<any[]>([]);
+  const [activitiesPerKecamatanData, setActivitiesPerKecamatanData] = useState<any[]>([]);
   const [kecamatanData, setKecamatanData] = useState<any[]>([]);  // Participants per Kecamatan
   const [loading, setLoading] = useState(true);
   const [viewLevel, setViewLevel] = useState<'kecamatan' | 'desa' | 'all'>('kecamatan');
@@ -82,6 +85,41 @@ export function Dashboard() {
             setSourceData(dataWithColors);
         }
 
+        // Fetch Gender Distribution
+        const genderRes = await fetch(getApiUrl(`/analytics/participants/gender`), { headers });
+        if (genderRes.ok) {
+            const data = await genderRes.json();
+            const genderColors = ['#3b82f6', '#ec4899']; // Blue for male, Pink for female
+            const dataWithColors = data.map((item: any, idx: number) => ({
+                ...item,
+                color: genderColors[idx % genderColors.length]
+            }));
+            setGenderData(dataWithColors);
+        }
+
+        // Fetch Age Distribution
+        const ageRes = await fetch(getApiUrl(`/analytics/participants/age`), { headers });
+        if (ageRes.ok) {
+            const data = await ageRes.json();
+            const ageColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+            const dataWithColors = data.map((item: any, idx: number) => ({
+                ...item,
+                color: ageColors[idx % ageColors.length]
+            }));
+            setAgeData(dataWithColors);
+        }
+
+        // Fetch Activities per Kecamatan
+        const activitiesKecRes = await fetch(getApiUrl(`/analytics/activities/per-kecamatan`), { headers });
+        if (activitiesKecRes.ok) {
+            const data = await activitiesKecRes.json();
+            const dataWithColors = data.map((item: any, idx: number) => ({
+                ...item,
+                color: COLORS[idx % COLORS.length]
+            }));
+            setActivitiesPerKecamatanData(dataWithColors);
+        }
+
         // Fetch Heatmap data for Participants per Kecamatan chart
         const heatmapRes = await fetch(getApiUrl(`/analytics/heatmap${queryString}`), { headers });
         if (heatmapRes.ok) {
@@ -126,8 +164,7 @@ export function Dashboard() {
                     };
                 })
                 .filter((item: any) => item.peserta > 0)
-                .sort((a: any, b: any) => b.peserta - a.peserta)
-                .slice(0, 10);  // Top 10 Areas
+                .sort((a: any, b: any) => b.peserta - a.peserta);
             setKecamatanData(barData);
         }
 
@@ -174,11 +211,12 @@ export function Dashboard() {
         />
       </div>
 
-      {/* Main Chart: Participants per Wilayah (Full Width) */}
-      <div className="mb-6">
+      {/* Main Charts: Participants per Wilayah and Age Generation (Side by Side) */}
+      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+        {/* Chart 1: Partisipan per Wilayah */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>Partisipan per Wilayah</CardTitle>
+            <CardTitle className="text-base">Partisipan per Wilayah</CardTitle>
             <Select value={viewLevel} onValueChange={(v: any) => setViewLevel(v)}>
                 <SelectTrigger className="w-[140px] h-8 text-xs">
                     <SelectValue placeholder="Pilih Level" />
@@ -191,36 +229,105 @@ export function Dashboard() {
             </Select>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: Math.max(kecamatanData.length * 60, 400), height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={kecamatanData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis 
+                        dataKey="name" 
+                        fontSize={9} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        interval={0}
+                        tick={{ dy: 10 }}
+                        height={70}
+                        angle={-45}
+                        textAnchor="end"
+                    />
+                    <YAxis 
+                        type="number" 
+                        fontSize={11} 
+                        tickLine={false} 
+                        axisLine={false} 
+                        allowDecimals={false}
+                        width={35}
+                    />
+                    <Tooltip 
+                        cursor={{fill: 'transparent'}}
+                        content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                    <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                                        <p className="font-semibold">{label}</p>
+                                        <p className="text-gray-500 text-xs mb-1">{data.type}</p>
+                                        <p className="text-blue-600 font-medium">
+                                            {payload[0].value} Peserta
+                                        </p>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }}
+                    />
+                    {viewLevel === 'all' && (
+                        <Legend 
+                            verticalAlign="top" 
+                            height={36}
+                            payload={[
+                                { value: 'Kecamatan', type: 'rect', color: '#3b82f6', id: 'kecamatan' },
+                                { value: 'Desa', type: 'rect', color: '#10b981', id: 'desa' }
+                            ]}
+                        />
+                    )}
+                    <Bar dataKey="peserta" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                        {kecamatanData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            {kecamatanData.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per kecamatan</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Chart 2: Partisipan per Usia */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Partisipan per Usia</CardTitle>
+          </CardHeader>
+          <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={kecamatanData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+              <BarChart data={ageData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
-                    dataKey="name" 
-                    fontSize={10} 
+                    dataKey="label" 
+                    fontSize={11} 
                     tickLine={false} 
-                    axisLine={false} 
-                    interval={0}
-                    tick={{ dy: 10 }}
-                    height={60}
-                    angle={-45}
-                    textAnchor="end"
+                    axisLine={false}
+                    tick={{ dy: 5 }}
                 />
                 <YAxis 
                     type="number" 
-                    fontSize={12} 
+                    fontSize={11} 
                     tickLine={false} 
                     axisLine={false} 
                     allowDecimals={false}
+                    width={35}
                 />
                 <Tooltip 
                     cursor={{fill: 'transparent'}}
-                    content={({ active, payload, label }) => {
+                    content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
                                 <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
-                                    <p className="font-semibold">{label}</p>
-                                    <p className="text-gray-500 text-xs mb-1">{data.type}</p>
+                                    <p className="text-gray-500 text-xs mb-1">Usia {data.label} tahun</p>
                                     <p className="text-blue-600 font-medium">
                                         {payload[0].value} Peserta
                                     </p>
@@ -230,31 +337,21 @@ export function Dashboard() {
                         return null;
                     }}
                 />
-                {viewLevel === 'all' && (
-                    <Legend 
-                        verticalAlign="top" 
-                        height={36}
-                        payload={[
-                            { value: 'Kecamatan', type: 'rect', color: '#3b82f6', id: 'kecamatan' },
-                            { value: 'Desa', type: 'rect', color: '#10b981', id: 'desa' }
-                        ]}
-                    />
-                )}
-                <Bar dataKey="peserta" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
-                    {kecamatanData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                <Bar dataKey="value" name="Peserta" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                    {ageData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            {kecamatanData.length === 0 && (
-              <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per kecamatan</p>
+            {ageData.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-8">Belum ada data peserta per generasi</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Row: 3 Columns */}
+      {/* Activity and Pie Charts Section */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Col 1: Aktivitas Engagement Terkini */}
         <Card>
@@ -281,65 +378,185 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Col 2: Distribusi Kegiatan */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribusi Kegiatan per Jenis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={sourceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, percent }) => {
-                    const truncatedName = name.length > 15 ? name.substring(0, 15) + '...' : name;
-                    return `${truncatedName} (${(percent * 100).toFixed(0)}%)`;
-                  }}
-                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
-                >
-                  {sourceData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {/* Col 2-3: 2x2 Grid of Pie Charts */}
+        <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
+          {/* Chart 1: Sumber Engagement (Activity Distribution) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Sumber Engagement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={sourceData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {sourceData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const total = sourceData.reduce((sum: number, item: any) => sum + item.value, 0);
+                        const percent = ((payload[0].value as number / total) * 100).toFixed(1);
+                        return (
+                          <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                            <p className="font-semibold">{payload[0].name}</p>
+                            <p className="text-gray-600">{percent}%</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend wrapperStyle={{fontSize: '12px'}} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-        {/* Col 3: Sumber Engagement */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Sumber Engagement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={sourceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {sourceData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          {/* Chart 2: Jenis Kelamin Peserta */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Jenis Kelamin Peserta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={genderData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {genderData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const total = genderData.reduce((sum: number, item: any) => sum + item.value, 0);
+                        const percent = ((payload[0].value as number / total) * 100).toFixed(1);
+                        return (
+                          <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                            <p className="font-semibold">{payload[0].name}</p>
+                            <p className="text-gray-600">{percent}%</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend wrapperStyle={{fontSize: '12px'}} />
+                </PieChart>
+              </ResponsiveContainer>
+              {genderData.length === 0 && (
+                <p className="text-center text-gray-500 text-sm">Belum ada data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 3: Usia Peserta (Age Distribution) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Usia Peserta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={ageData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {ageData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const total = ageData.reduce((sum: number, item: any) => sum + item.value, 0);
+                        const percent = ((payload[0].value as number / total) * 100).toFixed(1);
+                        return (
+                          <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                            <p className="font-semibold">{payload[0].name}</p>
+                            <p className="text-gray-600">{percent}%</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend wrapperStyle={{fontSize: '12px'}} />
+                </PieChart>
+              </ResponsiveContainer>
+              {ageData.length === 0 && (
+                <p className="text-center text-gray-500 text-sm">Belum ada data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 4: Kegiatan per Kecamatan */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Kegiatan per Kecamatan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={activitiesPerKecamatanData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {activitiesPerKecamatanData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const total = activitiesPerKecamatanData.reduce((sum: number, item: any) => sum + item.value, 0);
+                        const percent = ((payload[0].value as number / total) * 100).toFixed(1);
+                        return (
+                          <div className="bg-white p-2 border border-gray-200 shadow-sm rounded-md text-sm">
+                            <p className="font-semibold">{payload[0].name}</p>
+                            <p className="text-gray-600">{percent}%</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend wrapperStyle={{fontSize: '12px'}} />
+                </PieChart>
+              </ResponsiveContainer>
+              {activitiesPerKecamatanData.length === 0 && (
+                <p className="text-center text-gray-500 text-sm">Belum ada data</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
