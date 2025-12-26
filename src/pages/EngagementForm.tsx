@@ -108,7 +108,6 @@ export function EngagementForm() {
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const ITEMS_PER_PAGE = 5;
 
   // Duplicate NIK confirmation dialog state
@@ -154,53 +153,38 @@ export function EngagementForm() {
 
 
 
+  // Filtered Events Logic
+  const filteredEvents = useMemo(() => {
+    return events.filter(ev => {
+      // 1. Filter by Date
+      if (eventDateFilter && ev.date !== eventDateFilter) {
+        return false;
+      }
+
+      // 2. Filter by Search Query (Activity Name, Location)
+      if (eventSearchQuery) {
+        const lowerQuery = eventSearchQuery.toLowerCase();
+        const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
+        const activityName = activityType?.name?.toLowerCase() || '';
+        const location = (ev.kecamatan || ev.dapil || ev.desa || '').toLowerCase();
+        
+        return activityName.includes(lowerQuery) || location.includes(lowerQuery);
+      }
+
+      return true;
+    });
+  }, [events, eventDateFilter, eventSearchQuery, activityTypes]);
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [eventSearchQuery, eventDateFilter]);
 
-
-  // --- Fetchers ---
-  const fetchActivityTypes = async () => {
-    try {
-      const res = await authenticatedFetch(getApiUrl('/activity-types/'));
-      if (res.ok) setActivityTypes(await res.json());
-    } catch(e) { console.error(e); }
-  };
-
-  const fetchEvents = async () => {
-    try {
-      const params = new URLSearchParams();
-      params.append('page', String(currentPage));
-      params.append('size', String(ITEMS_PER_PAGE));
-      if (eventSearchQuery) params.append('search', eventSearchQuery);
-      if (eventDateFilter) {
-          params.append('date_from', eventDateFilter);
-          params.append('date_to', eventDateFilter);
-      }
-
-      const res = await authenticatedFetch(getApiUrl(`/events/?${params.toString()}`));
-      if (res.ok) {
-        const data = await res.json();
-        setEvents(data.items || []); 
-        setTotalItems(data.total || 0);
-      }
-    } catch(e) { console.error(e); }
-  };
-
-  const fetchAttendees = async (eventId: string) => {
-    try {
-      const res = await authenticatedFetch(getApiUrl(`/events/${eventId}/attendees`));
-      if (res.ok) setAttendees(await res.json());
-    } catch(e) { console.error(e); }
-  };
-
-  // Fetch events when pagination or filters change
-  useEffect(() => {
-    fetchEvents();
-  }, [currentPage, eventSearchQuery, eventDateFilter]);
-
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredEvents.length / ITEMS_PER_PAGE);
+  const paginatedEvents = filteredEvents.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // -- Forms --
   const eventForm = useForm<CreateEventFormValues>({
@@ -238,7 +222,7 @@ export function EngagementForm() {
 
   useEffect(() => {
     fetchActivityTypes();
-    // fetchEvents(); // Removed initial call here, it's handled by the dependency effect above
+    fetchEvents();
     
     // Pre-fill kecamatan from URL parameter (from Jadwalkan button)
     const kecamatanParam = searchParams.get('kecamatan');
@@ -276,7 +260,29 @@ export function EngagementForm() {
   }, [selectedEventId, events]);
 
   // --- Fetchers ---
+  const fetchActivityTypes = async () => {
+    try {
+      const res = await authenticatedFetch(getApiUrl('/activity-types/'));
+      if (res.ok) setActivityTypes(await res.json());
+    } catch(e) { console.error(e); }
+  };
 
+  const fetchEvents = async () => {
+    try {
+      const res = await authenticatedFetch(getApiUrl('/events/'));
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data.items || []); 
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const fetchAttendees = async (eventId: string) => {
+    try {
+      const res = await authenticatedFetch(getApiUrl(`/events/${eventId}/attendees`));
+      if (res.ok) setAttendees(await res.json());
+    } catch(e) { console.error(e); }
+  };
 
   // --- Handlers ---
   const onCreateEvent = async (data: CreateEventFormValues) => {
@@ -721,14 +727,14 @@ export function EngagementForm() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {events.length === 0 && (
+                    {filteredEvents.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-gray-500">
-                            {totalItems === 0 ? "Belum ada kegiatan" : "Tidak ada kegiatan yang cocok"}
+                            {events.length === 0 ? "Belum ada kegiatan" : "Tidak ada kegiatan yang cocok"}
                         </TableCell>
                       </TableRow>
                     )}
-                    {events.map((ev) => {
+                    {paginatedEvents.map((ev) => {
                       const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
                       return (
                         <TableRow key={ev.id}>
@@ -761,8 +767,7 @@ export function EngagementForm() {
                 </Table>
 
                 {/* Pagination Controls */}
-                {/* Pagination Controls */}
-                <div className="flex items-center justify-end space-x-1 py-4">
+                <div className="flex items-center justify-end space-x-2 py-4">
                   <Button
                     variant="outline"
                     size="icon"
@@ -771,59 +776,9 @@ export function EngagementForm() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  
-                  {(() => {
-                    const pages = [];
-                    // Logic to determine page numbers to show
-                    if (totalPages <= 7) {
-                      for (let i = 1; i <= totalPages; i++) pages.push(i);
-                    } else {
-                      pages.push(1);
-                      let startPage = Math.max(2, currentPage - 1);
-                      let endPage = Math.min(totalPages - 1, currentPage + 1);
-                      
-                      if (currentPage <= 4) {
-                          endPage = 5;
-                          startPage = 2; 
-                      }
-                      if (currentPage >= totalPages - 3) {
-                          startPage = totalPages - 4;
-                          endPage = totalPages - 1;
-                      }
-                      
-                      if (startPage > 2) {
-                          pages.push('...');
-                      }
-                      
-                      for (let i = startPage; i <= endPage; i++) {
-                          pages.push(i);
-                      }
-                      
-                      if (endPage < totalPages - 1) {
-                          pages.push('...');
-                      }
-                      
-                      if (totalPages > 1) pages.push(totalPages);
-                    }
-
-                    return pages.map((page, idx) => {
-                      if (page === '...') {
-                        return <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>;
-                      }
-                      return (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="icon"
-                          onClick={() => setCurrentPage(page as number)}
-                          className="h-8 w-8"
-                        >
-                          {page}
-                        </Button>
-                      );
-                    });
-                  })()}
-
+                  <div className="text-sm text-muted-foreground w-24 text-center">
+                      Hal {currentPage} dari {totalPages || 1}
+                  </div>
                   <Button
                     variant="outline"
                     size="icon"
