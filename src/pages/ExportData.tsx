@@ -99,6 +99,15 @@ export function ExportData() {
     return `peserta_kegiatan${filterLabel}_${new Date().toISOString().slice(0,10)}.${extension}`;
   };
 
+  // Helper to format full address
+  const formatAddress = (att: Attendee) => {
+    const parts = [];
+    if (att.alamat) parts.push(att.alamat);
+    if (att.desa) parts.push(att.desa);
+    if (att.kecamatan) parts.push(att.kecamatan);
+    return parts.length > 0 ? parts.join(", ") : "-";
+  };
+
   const handleExportCSV = () => {
     if (attendees.length === 0) {
       toast.error("Tidak ada data untuk diekspor");
@@ -112,7 +121,7 @@ export function ExportData() {
     const rows = attendees.map(row => [
       `"${row.name || ''}"`,
       row.nik || '',
-      `"${row.alamat || ''}"`,
+      `"${formatAddress(row)}"`,
       row.jenis_kelamin === 'L' ? 'Laki-laki' : row.jenis_kelamin === 'P' ? 'Perempuan' : '',
       `"${row.pekerjaan || ''}"`,
       row.usia || '',
@@ -145,7 +154,7 @@ export function ExportData() {
     const data = attendees.map(row => ({
       "Nama": row.name,
       "NIK": row.nik,
-      "Alamat": row.alamat,
+      "Alamat": formatAddress(row),
       "Jenis Kelamin": row.jenis_kelamin === 'L' ? 'Laki-laki' : row.jenis_kelamin === 'P' ? 'Perempuan' : '',
       "Pekerjaan": row.pekerjaan,
       "Usia": row.usia,
@@ -183,7 +192,7 @@ export function ExportData() {
     const tableData = attendees.map(row => [
       row.name,
       row.nik,
-      row.alamat || '-',
+      formatAddress(row),
       row.jenis_kelamin || '-',
       row.usia || '-'
     ]);
@@ -327,7 +336,7 @@ export function ExportData() {
                     <TableRow key={attendee.id}>
                       <TableCell className="font-medium">{attendee.name}</TableCell>
                       <TableCell>{attendee.nik}</TableCell>
-                      <TableCell>{attendee.alamat || '-'}</TableCell>
+                      <TableCell>{formatAddress(attendee)}</TableCell>
                       <TableCell>
                         {attendee.jenis_kelamin === 'L' ? 'Laki-laki' : 
                          attendee.jenis_kelamin === 'P' ? 'Perempuan' : '-'}
