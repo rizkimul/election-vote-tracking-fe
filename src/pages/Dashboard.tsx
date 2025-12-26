@@ -383,7 +383,7 @@ export function Dashboard() {
           {/* Chart 1: Sumber Engagement (Activity Distribution) */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Sumber Engagement</CardTitle>
+              <CardTitle className="text-base">Sumber Engagement (%)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -425,7 +425,7 @@ export function Dashboard() {
           {/* Chart 2: Jenis Kelamin Peserta */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Jenis Kelamin Peserta</CardTitle>
+              <CardTitle className="text-base">Jenis Kelamin Peserta (%)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -470,7 +470,7 @@ export function Dashboard() {
           {/* Chart 3: Usia Peserta (Age Distribution) */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Usia Peserta</CardTitle>
+              <CardTitle className="text-base">Usia Peserta (%)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -515,7 +515,7 @@ export function Dashboard() {
           {/* Chart 4: Kegiatan per Kecamatan */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Kegiatan per Kecamatan</CardTitle>
+              <CardTitle className="text-base">Kegiatan per Kecamatan (%)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
