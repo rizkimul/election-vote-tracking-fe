@@ -103,12 +103,10 @@ export function EngagementForm() {
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [eventSearchQuery, setEventSearchQuery] = useState('');
-  const [eventDateFilter, setEventDateFilter] = useState('');
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const [totalPages, setTotalPages] = useState(1);
 
   // Duplicate NIK confirmation dialog state
   const [duplicateDialog, setDuplicateDialog] = useState<{
@@ -153,38 +151,10 @@ export function EngagementForm() {
 
 
 
-  // Filtered Events Logic
-  const filteredEvents = useMemo(() => {
-    return events.filter(ev => {
-      // 1. Filter by Date
-      if (eventDateFilter && ev.date !== eventDateFilter) {
-        return false;
-      }
-
-      // 2. Filter by Search Query (Activity Name, Location)
-      if (eventSearchQuery) {
-        const lowerQuery = eventSearchQuery.toLowerCase();
-        const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
-        const activityName = activityType?.name?.toLowerCase() || '';
-        const location = (ev.kecamatan || ev.dapil || ev.desa || '').toLowerCase();
-        
-        return activityName.includes(lowerQuery) || location.includes(lowerQuery);
-      }
-
-      return true;
-    });
-  }, [events, eventDateFilter, eventSearchQuery, activityTypes]);
-
-  // Reset page when filters change
+  // Fetch events when page changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [eventSearchQuery, eventDateFilter]);
-
-  const totalPages = Math.ceil(filteredEvents.length / ITEMS_PER_PAGE);
-  const paginatedEvents = filteredEvents.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+    fetchEvents(currentPage);
+  }, [currentPage]);
 
   // -- Forms --
   const eventForm = useForm<CreateEventFormValues>({
@@ -222,7 +192,6 @@ export function EngagementForm() {
 
   useEffect(() => {
     fetchActivityTypes();
-    fetchEvents();
     
     // Pre-fill kecamatan from URL parameter (from Jadwalkan button)
     const kecamatanParam = searchParams.get('kecamatan');
@@ -267,15 +236,18 @@ export function EngagementForm() {
     } catch(e) { console.error(e); }
   };
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (page: number = 1) => {
     try {
-      const res = await authenticatedFetch(getApiUrl('/events/'));
+      // Server-side pagination with fixed size of 5
+      const res = await authenticatedFetch(getApiUrl(`/events/?page=${page}&size=5`));
       if (res.ok) {
         const data = await res.json();
-        setEvents(data.items || []); 
+        setEvents(data.items || []);
+        setTotalPages(data.pages || 1);
       }
     } catch(e) { console.error(e); }
   };
+
 
   const fetchAttendees = async (eventId: string) => {
     try {
@@ -679,41 +651,9 @@ export function EngagementForm() {
             </Card>
 
             <Card className="col-span-4">
-              <CardHeader className="flex flex-col space-y-4 pb-7">
-                <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                        <CardTitle>Daftar Kegiatan</CardTitle>
-                        <CardDescription>Kegiatan yang telah dijadwalkan</CardDescription>
-                    </div>
-                </div>
-                
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                         <Input 
-                           placeholder="Cari kegiatan, lokasi..." 
-                           value={eventSearchQuery}
-                           onChange={(e) => setEventSearchQuery(e.target.value)}
-                           className="pl-10"
-                         />
-                    </div>
-                    <Input 
-                        type="date"
-                        className="w-[180px]"
-                        value={eventDateFilter}
-                        onChange={(e) => setEventDateFilter(e.target.value)}
-                    />
-                    {eventDateFilter && (
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => setEventDateFilter('')}
-                            title="Hapus filter tanggal"
-                        >
-                            <X className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
+              <CardHeader>
+                <CardTitle>Daftar Kegiatan</CardTitle>
+                <CardDescription>Kegiatan yang telah dijadwalkan</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -727,14 +667,14 @@ export function EngagementForm() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEvents.length === 0 && (
+                    {events.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center text-gray-500">
-                            {events.length === 0 ? "Belum ada kegiatan" : "Tidak ada kegiatan yang cocok"}
+                            Belum ada kegiatan
                         </TableCell>
                       </TableRow>
                     )}
-                    {paginatedEvents.map((ev) => {
+                    {events.map((ev) => {
                       const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
                       return (
                         <TableRow key={ev.id}>
@@ -767,7 +707,7 @@ export function EngagementForm() {
                 </Table>
 
                 {/* Pagination Controls */}
-                <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="flex items-center justify-end space-x-1 py-4">
                   <Button
                     variant="outline"
                     size="icon"
@@ -776,9 +716,43 @@ export function EngagementForm() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <div className="text-sm text-muted-foreground w-24 text-center">
-                      Hal {currentPage} dari {totalPages || 1}
-                  </div>
+                  
+                  {/* Page Number Buttons */}
+                  {(() => {
+                    const pages: (number | 'ellipsis')[] = [];
+                    const maxVisible = 5;
+                    
+                    if (totalPages <= maxVisible) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      
+                      let start = Math.max(2, currentPage - 1);
+                      let end = Math.min(totalPages - 1, currentPage + 1);
+                      
+                      if (start > 2) pages.push('ellipsis');
+                      for (let i = start; i <= end; i++) pages.push(i);
+                      if (end < totalPages - 1) pages.push('ellipsis');
+                      if (totalPages > 1) pages.push(totalPages);
+                    }
+                    
+                    return pages.map((page, idx) => 
+                      page === 'ellipsis' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="icon"
+                          onClick={() => setCurrentPage(page)}
+                          className="h-8 w-8"
+                        >
+                          {page}
+                        </Button>
+                      )
+                    );
+                  })()}
+                  
                   <Button
                     variant="outline"
                     size="icon"
@@ -788,6 +762,7 @@ export function EngagementForm() {
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
+
               </CardContent>
             </Card>
           </div>
