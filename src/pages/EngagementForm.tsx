@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Textarea } from '../components/ui/textarea';
 import { Combobox } from '../components/ui/combobox';
+import { AsyncSearchableCombobox, AsyncComboboxOption } from '../components/ui/async-searchable-combobox';
 import { toast } from 'sonner';
 import { Calendar, UserPlus, Users, IdCard, GraduationCap, Pencil, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -780,22 +781,38 @@ export function EngagementForm() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Pilih Kegiatan</Label>
-                    <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih kegiatan aktif..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {events.map(ev => {
-                          const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
-                          const location = ev.kecamatan || ev.dapil || '-';
-                          return (
-                            <SelectItem key={ev.id} value={String(ev.id)}>
-                              {ev.date}, {activityType?.name || 'Unknown Activity'}, {location}
-                            </SelectItem>
+                    <AsyncSearchableCombobox
+                      value={selectedEventId}
+                      onValueChange={setSelectedEventId}
+                      placeholder="Pilih kegiatan aktif..."
+                      searchPlaceholder="Cari kegiatan atau kecamatan..."
+                      emptyText="Tidak ada kegiatan ditemukan."
+                      fetchOptions={async ({ page, search }) => {
+                        try {
+                          const res = await authenticatedFetch(
+                            getApiUrl(`/events/?page=${page}&size=10${search ? `&search=${encodeURIComponent(search)}` : ''}`)
                           );
-                        })}
-                      </SelectContent>
-                    </Select>
+                          if (res.ok) {
+                            const data = await res.json();
+                            const items: AsyncComboboxOption[] = (data.items || []).map((ev: Event) => {
+                              const activityType = activityTypes.find(t => t.id === ev.activity_type_id);
+                              const location = ev.kecamatan || ev.dapil || '-';
+                              return {
+                                value: String(ev.id),
+                                label: `${ev.date}, ${activityType?.name || 'Kegiatan'}, ${location}`
+                              };
+                            });
+                            return {
+                              items,
+                              hasMore: page < (data.pages || 1)
+                            };
+                          }
+                        } catch (e) {
+                          console.error('Error fetching events:', e);
+                        }
+                        return { items: [], hasMore: false };
+                      }}
+                    />
                   </div>
                   
                   <form onSubmit={attendeeForm.handleSubmit((data) => onAddAttendee(data))} className="space-y-4 border-t pt-4">
